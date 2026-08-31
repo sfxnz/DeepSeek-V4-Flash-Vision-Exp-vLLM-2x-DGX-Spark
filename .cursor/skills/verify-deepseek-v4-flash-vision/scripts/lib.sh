@@ -1,0 +1,6 @@
+CONTAINER_NAME="${CONTAINER_NAME:-dsv4-flash-vision-exp}"
+PORT="${PORT:-8000}"
+IMAGE="${IMAGE:-dsv4-flash-vision-sm121}"
+SERVED_NAME="${SERVED_NAME:-deepseek-ai/DeepSeek-V4-Flash-Vision-Exp}"
+WORKER_HOST="${WORKER_HOST:-spark2}"
+API="http://127.0.0.1:${PORT}/v1"

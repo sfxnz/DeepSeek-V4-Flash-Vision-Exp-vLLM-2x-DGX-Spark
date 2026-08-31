@@ -1,0 +1,11 @@
+.env
+*.log
+.DS_Store
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/
+.audit/
+.cursor/skills/verify-deepseek-v4-flash-vision/.run-state/
+.cursor/skills/verify-deepseek-v4-flash-vision/artifacts/
