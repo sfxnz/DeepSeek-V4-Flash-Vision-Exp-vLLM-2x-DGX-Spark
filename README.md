@@ -32,7 +32,7 @@ docker pull eugr/spark-vllm-b12x:latest
 docker build -f docker/Dockerfile.b12x-vision -t dsv4-flash-vision-sm121 docker
 ```
 
-The Dockerfile starts from `eugr/spark-vllm-b12x:latest` and installs the official ViT/aligner as a vLLM plugin (`VLLM_PLUGINS=dsv4_vision`). `run.sh` refuses a missing image. Do not use stock vllm/vllm-openai on sm_121.
+The Dockerfile starts from `eugr/spark-vllm-b12x:latest` and installs the official ViT/aligner as a vLLM plugin (`VLLM_PLUGINS=dsv4_vision`). The wrapper subclasses `DeepseekV4ForCausalLM` so DSpark still sees `lm_head` and `get_mtp_target_hidden_states`. A compose-style wrapper that hides those attributes collapses draft acceptance. `run.sh` refuses a missing image. Do not use stock vllm/vllm-openai on sm_121.
 
 ## Quick start
 

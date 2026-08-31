@@ -54,6 +54,23 @@ class DeepseekV4VisionForCausalLM(DeepseekV4ForCausalLM):
     def encode_image(self, patches: torch.Tensor, n_vit_h: int, n_vit_w: int) -> torch.Tensor:
         return self.aligner(self.vision(patches, n_vit_h, n_vit_w), n_vit_h, n_vit_w)
 
+    def forward(
+        self,
+        input_ids,
+        positions,
+        intermediate_tensors=None,
+        inputs_embeds=None,
+        **kwargs,
+    ):
+        # Spec-decode extra kwargs must not TypeError. lm_head and
+        # get_mtp_target_hidden_states stay on the parent class.
+        return super().forward(
+            input_ids,
+            positions,
+            intermediate_tensors,
+            inputs_embeds,
+        )
+
     def load_weights(self, weights):
         if self.vision is None:
             return super().load_weights(weights)

@@ -31,6 +31,12 @@ class PluginRegisterTests(unittest.TestCase):
     def test_module_import_does_not_need_vllm(self) -> None:
         self.assertIn("register", dsv4_vision.__all__ if hasattr(dsv4_vision, "__all__") else ("register",))
 
+    def test_forward_accepts_kwargs_and_keeps_dspark_attrs(self) -> None:
+        src = (ROOT / "docker" / "plugin" / "dsv4_vision" / "model.py").read_text()
+        self.assertIn("**kwargs", src)
+        self.assertIn("class DeepseekV4VisionForCausalLM(DeepseekV4ForCausalLM)", src)
+        self.assertNotIn("self.lm_head =", src)
+
 
 if __name__ == "__main__":
     unittest.main()
