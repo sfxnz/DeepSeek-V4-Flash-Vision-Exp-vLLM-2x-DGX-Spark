@@ -37,6 +37,8 @@ class PluginRegisterTests(unittest.TestCase):
         self.assertIn("class DeepseekV4VisionForCausalLM(DeepseekV4ForCausalLM)", src)
         self.assertNotIn("self.lm_head =", src)
         self.assertIn("bias_vl", src)
+        self.assertIn("def _skip_unmapped_gate", src)
+        self.assertIn("num_hash_layers", src)
 
 
 if __name__ == "__main__":

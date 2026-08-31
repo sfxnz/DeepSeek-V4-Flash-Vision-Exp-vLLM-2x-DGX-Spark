@@ -31,6 +31,7 @@ def _vision_args(hf: Any) -> SimpleNamespace:
         vision_min_pixels=int(getattr(hf, "vision_min_pixels", 147456)),
         vision_max_wh_ratio=int(getattr(hf, "vision_max_wh_ratio", 8)),
         dim=int(getattr(hf, "hidden_size", 4096)),
+        num_hash_layers=int(getattr(hf, "num_hash_layers", 0) or 0),
     )
 
 
@@ -99,7 +100,27 @@ class DeepseekV4VisionForCausalLM(DeepseekV4ForCausalLM):
                     break
             if not routed:
                 leftover.append((name, tensor))
-        # 43 layer + 3 MTP `ffn.gate.bias_vl` tensors. vLLM maps only
-        # `ffn.gate.bias`. Leave them in leftover so they are not silently
-        # dropped as vision.* / aligner.*. Router use is a later hillclimb.
+        leftover = [
+            pair
+            for pair in leftover
+            if not _skip_unmapped_gate(pair[0], self._vision_args)
+        ]
         return super().load_weights(leftover)
+
+
+def _skip_unmapped_gate(name: str, args: SimpleNamespace) -> bool:
+    # Hash MoE layers register tid2eid and leave e_score_correction_bias as
+    # None. The B12X mapper still rewrites ffn.gate.bias onto that missing
+    # name. bias_vl has no mapper at all.
+    if name.endswith("ffn.gate.bias_vl"):
+        return True
+    if name.endswith("ffn.gate.bias"):
+        parts = name.split(".")
+        if (
+            len(parts) >= 5
+            and parts[0] == "layers"
+            and parts[1].isdigit()
+            and int(parts[1]) < args.num_hash_layers
+        ):
+            return True
+    return False

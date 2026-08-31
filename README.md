@@ -2,13 +2,32 @@
 
 Serve [deepseek-ai/DeepSeek-V4-Flash-Vision-Exp](https://huggingface.co/deepseek-ai/DeepSeek-V4-Flash-Vision-Exp) across two NVIDIA DGX Spark (GB10) nodes at tensor-parallel 2.
 
-284B total / 13B active MoE plus a native 32-layer ViT (~0.47B BF16). Experts are MXFP4. Attention is FP8. Native context is 1,048,576. This recipe serves `--max-model-len` 327680 with fused DSpark (5 speculative tokens) on the B12X GB10 image.
+284B total / 13B active MoE plus a native 32-layer ViT (~0.47B BF16). Experts are MXFP4. Attention is FP8. Native context is 1,048,576. This recipe serves `--max-model-len` 1048576 with fused DSpark (6 speculative tokens) on the B12X GB10 image.
 
-Stock `vllm/vllm-openai` does not run MXFP4 CSA/HCA on sm_121. Build `dsv4-flash-vision-sm121` from `eugr/spark-vllm-b12x:latest` first.
-
-Decode bench is later. This recipe is not yet timed on this lab.
+Stock `vllm/vllm-openai` does not run MXFP4 CSA/HCA on sm_121. Build `dsv4-flash-vision-sm121` from `eugr/spark-vllm-b12x:latest` first. The overlay `ENTRYPOINT` is `vllm serve`. The B12X base image has no CMD, so a snapshot path as argv0 execs a directory.
 
 Pinned snapshot: `86f746b36186f0e567729a5c06a8c918caba82a9`.
+
+## Measured on 2× DGX Spark (L.A.I.L lab)
+
+Decode only. Streamed greedy, thinking off, 200 completion tokens, 3-run median. `max-num-seqs=2`, fp8 KV pinned at 12 GiB (`12884901888`), context 1048576, DSpark-6, CUDA graphs. Prose is the low-acceptance regime. Structured (count 1→200) is the high-acceptance regime.
+
+| Phase | Concurrency | Decode tok/s (median per stream) | Aggregate tok/s | TTFT p50 |
+|---|---|---:|---:|---:|
+| prose | 1 | 27.0 | 27.0 | 0.37 s |
+| prose | 2 | 20.6 | 39.8 | 0.37 s |
+| structured | 1 | 86.9 | 86.9 | 0.34 s |
+| structured | 2 | 66.0 | 130.8 | 0.51 s |
+
+Engine log: GPU KV cache size 1,250,741 tokens, 1.19× concurrency at 1,048,576. vLLM needs 11.04 GiB for one 1M request. An 8 GiB pin estimates max len 289024. Do not use a 26 GiB community pin on this UMA leftover.
+
+DSpark-5 is rejected (`num_speculative_tokens` must be divisible by `n_predict=3`). DSpark-6 boots. Draft acceptance on this bench: prose ~0.15, structured ~0.89.
+
+`VLLM_USE_B12X_MHC` stays off. Vision-Exp `rms_norm_eps` is `1e-20`. The B12X fused Gram mHC kernel only accepts `1e-6`.
+
+Prefill from unique-salt needles, thinking off: 13,349 prompt tokens at 2134 tok/s (hit), 53,349 at 1924 tok/s (hit), 200,013 at 1780 tok/s (miss, model repeated the filler). A 1M needle was not run. Host available RAM after boot is about 8 GiB. Do not raise `MAX_NUM_SEQS` on this pin.
+
+`python3 bench_decode.py` repeats both phases at c=1,2.
 
 ## Requirements
 
@@ -101,14 +120,15 @@ Stop both ranks from the head:
 | Image | `dsv4-flash-vision-sm121` |
 | Model | `deepseek-ai/DeepSeek-V4-Flash-Vision-Exp` |
 | `--tensor-parallel-size` / `--nnodes` | 2 / 2 |
-| `--max-model-len` | 327680 |
+| `--max-model-len` | 1048576 |
 | `--max-num-seqs` | 2 |
+| `--max-num-batched-tokens` | 8192 |
 | `--kv-cache-dtype` | `fp8` |
-| `--kv-cache-memory` | `4445787956` |
+| `--kv-cache-memory` | `12884901888` |
 | `--moe-backend` | `b12x` |
 | `--block-size` | 256 |
 | CUDA graphs | on, `FULL_AND_PIECEWISE` (`ENFORCE_EAGER=1` reverts to `--enforce-eager`) |
-| Speculative | DSpark-5 (`SPEC=dspark`) |
+| Speculative | DSpark-6 (`SPEC=dspark`) |
 | Load format | `auto` (safetensors). `LOAD_FORMAT=instanttensor` is opt-in |
 | Tokenizers / tools / reasoning | `deepseek_v4` |
 | Default thinking | `thinking=false`, `reasoning_effort=low` |
@@ -116,7 +136,7 @@ Stop both ranks from the head:
 | Container | `dsv4-flash-vision-exp` |
 | Master port | 29522 |
 
-`--kv-cache-memory 4445787956` is the lab UMA pin (4.14 GiB). Do not advertise a 1,048,576 window on this pin. `run.sh` refuses `--max-model-len` above 327680 on fp8 unless `FORCE_UNSAFE_CTX=1`. Official Spark occupancy is `MAX_NUM_SEQS=8` with `--max-num-batched-tokens 8192`. Default here is two sequences until that occupancy is measured on Vision-Exp.
+`--kv-cache-memory 12884901888` is the measured 12 GiB pin (1.19× at 1M). `run.sh` refuses `--max-model-len` above 1048576 on fp8, and refuses a pin below 12 GiB when the window is above 289024, unless `FORCE_UNSAFE_CTX=1`. Official Spark occupancy is `MAX_NUM_SEQS=8`. Default here stays two sequences. Host headroom after boot is about 8 GiB.
 
 There is no Jinja chat template. Use `--tokenizer-mode deepseek_v4` and `chat_template_kwargs.thinking`.
 
@@ -128,7 +148,7 @@ export WORKER_HOST=spark2
 export IFACE=enp1s0f1np1
 export HCA=rocep1s0f1
 export PORT=8000
-export MAX_MODEL_LEN=327680
+export MAX_MODEL_LEN=1048576
 export MAX_NUM_SEQS=2
 ```
 

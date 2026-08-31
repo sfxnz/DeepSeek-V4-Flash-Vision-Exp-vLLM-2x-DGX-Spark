@@ -1,8 +1,11 @@
 FROM eugr/spark-vllm-b12x:latest
 
 COPY plugin /opt/dsv4_vision_src
-RUN python3 -m pip install --no-cache-dir --no-deps /opt/dsv4_vision_src
+COPY patch_dspark_skip_bias_vl.py /tmp/patch_dspark_skip_bias_vl.py
+RUN python3 -m pip install --no-cache-dir --no-deps /opt/dsv4_vision_src \
+    && python3 /tmp/patch_dspark_skip_bias_vl.py
 
 ENV VLLM_PLUGINS=dsv4_vision
 ENV TORCH_CUDA_ARCH_LIST=12.1a
 ENV FLASHINFER_CUDA_ARCH_LIST=12.1a
+ENTRYPOINT ["vllm", "serve"]

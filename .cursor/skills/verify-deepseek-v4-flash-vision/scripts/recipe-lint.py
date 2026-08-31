@@ -43,6 +43,7 @@ def main() -> int:
     need(REPO / "docker" / "plugin" / "dsv4_vision" / "vision.py")
     need(REPO / "docker" / "plugin" / "dsv4_vision" / "image_processor.py")
     need(REPO / "docker" / "plugin" / "dsv4_vision" / "model.py")
+    need(REPO / "docker" / "patch_dspark_skip_bias_vl.py")
     need(REPO / "encoding" / "encoding_dsv4.py")
     need(REPO / "tests" / "test_image_grid.py")
     need(REPO / "tests" / "test_plugin_register.py")
@@ -87,14 +88,15 @@ def main() -> int:
     expected = {
         "IMAGE": "dsv4-flash-vision-sm121",
         "PORT": "8000",
-        "MAX_MODEL_LEN": "327680",
+        "MAX_MODEL_LEN": "1048576",
         "MAX_NUM_SEQS": "2",
-        "KV_CACHE_MEMORY": "4445787956",
+        "KV_CACHE_MEMORY": "12884901888",
         "BLOCK_SIZE": "256",
         "SPEC": "dspark",
         "SERVED_NAME": "deepseek-ai/DeepSeek-V4-Flash-Vision-Exp",
         "CONTAINER_NAME": "dsv4-flash-vision-exp",
-        "NUM_SPECULATIVE_TOKENS": "5",
+        "NUM_SPECULATIVE_TOKENS": "6",
+        "MAX_NUM_BATCHED_TOKENS": "8192",
         "KV_CACHE_DTYPE": "fp8",
         "MASTER_PORT": "29522",
         "LOAD_FORMAT": "auto",
@@ -123,6 +125,11 @@ def main() -> int:
         got = from_line(dockerfile)
         if got != "eugr/spark-vllm-b12x:latest":
             failures.append(f"Dockerfile.b12x-vision FROM {got!r} want 'eugr/spark-vllm-b12x:latest'")
+        df_text = dockerfile.read_text()
+        if 'ENTRYPOINT ["vllm", "serve"]' not in df_text:
+            failures.append("Dockerfile.b12x-vision missing ENTRYPOINT [\"vllm\", \"serve\"]")
+        if "patch_dspark_skip_bias_vl.py" not in df_text:
+            failures.append("Dockerfile.b12x-vision missing patch_dspark_skip_bias_vl.py")
 
     if '"prose"' not in bench or '"structured"' not in bench:
         failures.append("bench_decode.py missing prose/structured PHASES")
@@ -165,10 +172,10 @@ def main() -> int:
         check=False,
         capture_output=True,
         text=True,
-        env={**os.environ, "VALIDATE_ONLY": "1", "MAX_MODEL_LEN": "1048576"},
+        env={**os.environ, "VALIDATE_ONLY": "1", "MAX_MODEL_LEN": "2097152"},
     )
     if refuse.returncode == 0 or "cannot hold --max-model-len" not in refuse.stderr:
-        failures.append("VALIDATE_ONLY=1 MAX_MODEL_LEN=1048576 did not refuse the fp8 1M window")
+        failures.append("VALIDATE_ONLY=1 MAX_MODEL_LEN=2097152 did not refuse a window above 1M")
 
     print(f"repo={REPO}")
     if failures:

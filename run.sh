@@ -14,17 +14,17 @@ IFACE="${IFACE:-enp1s0f1np1}"
 HCA="${HCA:-rocep1s0f1}"
 TP="${TP:-2}"
 NNODES="${NNODES:-2}"
-MAX_MODEL_LEN="${MAX_MODEL_LEN:-327680}"
+MAX_MODEL_LEN="${MAX_MODEL_LEN:-1048576}"
 MAX_NUM_SEQS="${MAX_NUM_SEQS:-2}"
-UTIL="${UTIL:-0.85}"
+UTIL="${UTIL:-0.80}"
 KV_CACHE_DTYPE="${KV_CACHE_DTYPE:-fp8}"
-KV_CACHE_MEMORY="${KV_CACHE_MEMORY:-4445787956}"
+KV_CACHE_MEMORY="${KV_CACHE_MEMORY:-12884901888}"
 BLOCK_SIZE="${BLOCK_SIZE:-256}"
-NUM_SPECULATIVE_TOKENS="${NUM_SPECULATIVE_TOKENS:-5}"
+NUM_SPECULATIVE_TOKENS="${NUM_SPECULATIVE_TOKENS:-6}"
 SPEC="${SPEC:-dspark}"
 LOAD_FORMAT="${LOAD_FORMAT:-auto}"
 MOE_BACKEND="${MOE_BACKEND:-b12x}"
-MAX_NUM_BATCHED_TOKENS="${MAX_NUM_BATCHED_TOKENS:-}"
+MAX_NUM_BATCHED_TOKENS="${MAX_NUM_BATCHED_TOKENS:-8192}"
 FORCE_UNSAFE_CTX="${FORCE_UNSAFE_CTX:-0}"
 ENFORCE_EAGER="${ENFORCE_EAGER:-0}"
 VLLM_USE_BREAKABLE_CUDAGRAPH="${VLLM_USE_BREAKABLE_CUDAGRAPH:-0}"
@@ -54,12 +54,16 @@ if [[ -z "${COMPILATION_CONFIG:-}" ]]; then
   COMPILATION_CONFIG='{"cudagraph_mode":"FULL_AND_PIECEWISE","custom_ops":["all"]}'
 fi
 
-if [[ "$KV_CACHE_DTYPE" == fp8 && "$MAX_MODEL_LEN" -gt 327680 && "$FORCE_UNSAFE_CTX" != 1 ]]; then
-  echo "fp8 KV pin cannot hold --max-model-len $MAX_MODEL_LEN. A 1M window needs more UMA than GB10 survives. FORCE_UNSAFE_CTX=1 overrides." >&2
+if [[ "$KV_CACHE_DTYPE" == fp8 && "$MAX_MODEL_LEN" -gt 1048576 && "$FORCE_UNSAFE_CTX" != 1 ]]; then
+  echo "fp8 KV pin cannot hold --max-model-len $MAX_MODEL_LEN. The 12 GiB pin holds 1048576 at 1.19x (needs 11.04 GiB). FORCE_UNSAFE_CTX=1 overrides." >&2
   exit 1
 fi
-if [[ "$KV_CACHE_DTYPE" == fp8_e4m3 && "$MAX_MODEL_LEN" -gt 327680 && "$FORCE_UNSAFE_CTX" != 1 ]]; then
-  echo "fp8 KV pin cannot hold --max-model-len $MAX_MODEL_LEN. A 1M window needs more UMA than GB10 survives. FORCE_UNSAFE_CTX=1 overrides." >&2
+if [[ "$KV_CACHE_DTYPE" == fp8_e4m3 && "$MAX_MODEL_LEN" -gt 1048576 && "$FORCE_UNSAFE_CTX" != 1 ]]; then
+  echo "fp8 KV pin cannot hold --max-model-len $MAX_MODEL_LEN. The 12 GiB pin holds 1048576 at 1.19x (needs 11.04 GiB). FORCE_UNSAFE_CTX=1 overrides." >&2
+  exit 1
+fi
+if [[ "$KV_CACHE_MEMORY" -lt 12884901888 && "$MAX_MODEL_LEN" -gt 289024 && "$FORCE_UNSAFE_CTX" != 1 ]]; then
+  echo "KV pin $KV_CACHE_MEMORY cannot hold --max-model-len $MAX_MODEL_LEN. 8 GiB estimates max len 289024. 1M needs 11.04 GiB. FORCE_UNSAFE_CTX=1 overrides." >&2
   exit 1
 fi
 
@@ -191,7 +195,7 @@ start_local() {
     -e "VLLM_MEMORY_PROFILE_INCLUDE_ATTN=1"
     -e "VLLM_USE_FLASHINFER_SAMPLER=1"
     -e "VLLM_USE_B12X_WO_PROJECTION=1"
-    -e "VLLM_USE_B12X_MHC=1"
+    -e "VLLM_USE_B12X_MHC=${VLLM_USE_B12X_MHC:-0}"
     -e "VLLM_USE_B12X_FP8_GEMM=1"
     -e "VLLM_USE_B12X_MOE=1"
     -e "VLLM_USE_B12X_SPARSE_INDEXER=1"
