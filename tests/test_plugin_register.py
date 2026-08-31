@@ -36,6 +36,7 @@ class PluginRegisterTests(unittest.TestCase):
         self.assertIn("**kwargs", src)
         self.assertIn("class DeepseekV4VisionForCausalLM(DeepseekV4ForCausalLM)", src)
         self.assertNotIn("self.lm_head =", src)
+        self.assertIn("bias_vl", src)
 
 
 if __name__ == "__main__":

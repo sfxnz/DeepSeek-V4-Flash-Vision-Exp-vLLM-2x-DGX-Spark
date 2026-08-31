@@ -71,6 +71,8 @@ curl -s http://127.0.0.1:8000/v1/chat/completions \
 
 Vision smoke. Images use OpenAI `image_url` blocks. The placeholder is `<｜deepseek_image｜>`. Cap is 384 tokens per image.
 
+Every MoE layer also ships `ffn.gate.bias_vl` (43 backbone + 3 MTP). vLLM's DeepseekV4 mapper only maps `ffn.gate.bias` to `e_score_correction_bias`. Image-token expert routing is not on the B12X text path until a later hillclimb patches the router. Text decode is unaffected.
+
 ```bash
 curl -s http://127.0.0.1:8000/v1/chat/completions \
   -H 'Content-Type: application/json' \

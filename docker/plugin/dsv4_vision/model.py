@@ -99,4 +99,7 @@ class DeepseekV4VisionForCausalLM(DeepseekV4ForCausalLM):
                     break
             if not routed:
                 leftover.append((name, tensor))
+        # 43 layer + 3 MTP `ffn.gate.bias_vl` tensors. vLLM maps only
+        # `ffn.gate.bias`. Leave them in leftover so they are not silently
+        # dropped as vision.* / aligner.*. Router use is a later hillclimb.
         return super().load_weights(leftover)

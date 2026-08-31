@@ -79,6 +79,7 @@ def main() -> int:
         "Say hello in one sentence.",
         "thinking",
         "eugr/spark-vllm-b12x:latest",
+        "bias_vl",
     ):
         if snippet not in readme:
             failures.append(f"README missing {snippet!r}")
