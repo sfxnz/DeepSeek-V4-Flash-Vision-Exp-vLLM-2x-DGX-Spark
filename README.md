@@ -51,7 +51,7 @@ docker pull eugr/spark-vllm-b12x:latest@sha256:7dc02f162929943ba2e14514066ed2a04
 docker build -f docker/Dockerfile.b12x-vision -t dsv4-flash-vision-sm121 docker
 ```
 
-The Dockerfile starts from `eugr/spark-vllm-b12x:latest@sha256:7dc02f162929943ba2e14514066ed2a04bb7e9ed3592d4eb460ebcbb1f8376bd` and installs the official ViT/aligner as a vLLM plugin (`VLLM_PLUGINS=dsv4_vision`). The wrapper subclasses `DeepseekV4ForCausalLM` so DSpark still sees `lm_head` and `get_mtp_target_hidden_states`. A compose-style wrapper that hides those attributes collapses draft acceptance. `run.sh` refuses a missing image. Do not use stock vllm/vllm-openai on sm_121.
+The Dockerfile starts from `eugr/spark-vllm-b12x:latest@sha256:7dc02f162929943ba2e14514066ed2a04bb7e9ed3592d4eb460ebcbb1f8376bd` and installs the official ViT/aligner as a vLLM plugin (`VLLM_PLUGINS=dsv4_vision`). The wrapper subclasses `DeepseekV4ForCausalLM` and `SupportsMultiModal` so DSpark still sees `lm_head` and `get_mtp_target_hidden_states`. A compose-style wrapper that hides those attributes collapses draft acceptance. `run.sh` refuses a missing image. Do not use stock vllm/vllm-openai on sm_121.
 
 ## Quick start
 
@@ -88,7 +88,7 @@ curl -s http://127.0.0.1:8000/v1/chat/completions \
   }'
 ```
 
-Vision smoke is not wired on this SHA. A POST with `image_url` returns HTTP 400 `deepseek-ai/DeepSeek-V4-Flash-Vision-Exp is not a multimodal model`. The plugin loads ViT and Aligner weights, but it never registers `SupportsMultiModal` or `MULTIMODAL_REGISTRY`. vLLM rejects the request before inference. Keep this curl as the check after that registration lands. Images use OpenAI `image_url` blocks. The placeholder is `<｜deepseek_image｜>`. Cap is 384 tokens per image.
+Vision is wired. `image_url` is accepted. The plugin registers `SupportsMultiModal` and `MULTIMODAL_REGISTRY`. A POST must not return HTTP 400 `is not a multimodal model`. After `./run.sh`, run `python3 smoke_vision.py`. Images use OpenAI `image_url` blocks. The placeholder is `<｜deepseek_image｜>`. Cap is 384 tokens per image.
 
 Every MoE layer also ships `ffn.gate.bias_vl` (43 backbone + 3 MTP). vLLM's DeepseekV4 mapper only maps `ffn.gate.bias` to `e_score_correction_bias`. Image-token expert routing is not on the B12X text path until a later hillclimb patches the router. Text decode is unaffected.
 
