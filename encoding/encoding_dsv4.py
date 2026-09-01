@@ -234,6 +234,28 @@ def find_last_user_index(messages: List[Dict[str, Any]]) -> int:
 # Message Rendering
 # ============================================================
 
+def flatten_content_blocks(content: Any) -> Any:
+    """Flatten OpenAI-style content blocks to plain text.
+
+    Image blocks become IMAGE_PLACEHOLDER. The image bytes travel out of band.
+    """
+    if not isinstance(content, list):
+        return content
+    parts: List[str] = []
+    for block in content:
+        if not isinstance(block, dict):
+            parts.append(str(block))
+        elif block.get("type") in ("image", "image_url"):
+            parts.append(IMAGE_PLACEHOLDER)
+        elif block.get("type") == "text":
+            parts.append(block.get("text", "") or "")
+        else:
+            raise ValueError(
+                f"Unsupported content block type: {block.get('type')!r}"
+            )
+    return "".join(parts)
+
+
 def render_message(index: int, messages: List[Dict[str, Any]], thinking_mode: str, drop_thinking: bool = True, reasoning_effort: Optional[str] = None) -> str:
     """
     Render a single message at the given index into its encoded string form.
@@ -310,6 +332,8 @@ def render_message(index: int, messages: List[Dict[str, Any]], thinking_mode: st
                 block_type = block.get("type")
                 if block_type == "text":
                     parts.append(block.get("text", ""))
+                elif block_type in ("image", "image_url"):
+                    parts.append(IMAGE_PLACEHOLDER)
                 elif block_type == "tool_result":
                     tool_content = block.get("content", "")
                     if isinstance(tool_content, list):
@@ -456,7 +480,24 @@ def merge_tool_messages(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         elif role == "user":
             content_blocks = msg.get("content_blocks")
             if content_blocks is None:
-                content_blocks = [{"type": "text", "text": msg.get("content", "")}]
+                content = msg.get("content", "")
+                if isinstance(content, list):
+                    msg["content"] = flatten_content_blocks(content)
+                    content_blocks = []
+                    for block in content:
+                        if isinstance(block, dict) and block.get("type") in (
+                            "image",
+                            "image_url",
+                        ):
+                            content_blocks.append(
+                                {"type": "text", "text": IMAGE_PLACEHOLDER}
+                            )
+                        elif isinstance(block, dict) and block.get("type") == "text":
+                            content_blocks.append(block)
+                        else:
+                            content_blocks.append({"type": "text", "text": str(block)})
+                else:
+                    content_blocks = [{"type": "text", "text": content}]
             if merged and merged[-1].get("role") == "user" and "content_blocks" in merged[-1] and merged[-1].get("task") is None:
                 merged[-1]["content_blocks"].extend(content_blocks)
             else:
