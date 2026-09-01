@@ -93,15 +93,21 @@ def wave(
 ) -> tuple[list[dict], float, float]:
     t0 = time.perf_counter()
     out = []
+    errors: list[BaseException] = []
     with ThreadPoolExecutor(max_workers=concurrency) as pool:
         futs = [pool.submit(stream_one, url, model, prompt, max_tokens) for _ in range(concurrency)]
         for fut in as_completed(futs):
             try:
                 out.append(fut.result())
-            except Exception as exc:  # noqa: BLE001 - keep the wave's other streams
+            except Exception as exc:  # noqa: BLE001
                 print(f"stream failed: {exc}", file=sys.stderr, flush=True)
+                errors.append(exc)
+    if errors:
+        raise RuntimeError(f"{len(errors)} stream(s) in the wave failed")
     if not out:
         raise RuntimeError("every stream in the wave failed")
+    if any(int(r["completion_tokens"]) == 0 for r in out):
+        raise RuntimeError("a stream returned completion_tokens==0")
     wall = time.perf_counter() - t0
     decode_tokens = sum(max(r["completion_tokens"] - 1, 0) for r in out)
     # Shared wall clock after the first token of the slowest-to-start stream is messy.

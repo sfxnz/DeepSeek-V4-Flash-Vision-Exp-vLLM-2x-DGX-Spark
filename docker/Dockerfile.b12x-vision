@@ -1,4 +1,4 @@
-FROM eugr/spark-vllm-b12x:latest
+FROM eugr/spark-vllm-b12x:latest@sha256:7dc02f162929943ba2e14514066ed2a04bb7e9ed3592d4eb460ebcbb1f8376bd
 
 COPY plugin /opt/dsv4_vision_src
 COPY patch_dspark_skip_bias_vl.py /tmp/patch_dspark_skip_bias_vl.py

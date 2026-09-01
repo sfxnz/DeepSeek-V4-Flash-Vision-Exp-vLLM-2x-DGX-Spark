@@ -66,6 +66,19 @@ if [[ "$KV_CACHE_MEMORY" -lt 12884901888 && "$MAX_MODEL_LEN" -gt 289024 && "$FOR
   echo "KV pin $KV_CACHE_MEMORY cannot hold --max-model-len $MAX_MODEL_LEN. 8 GiB estimates max len 289024. 1M needs 11.04 GiB. FORCE_UNSAFE_CTX=1 overrides." >&2
   exit 1
 fi
+if [[ "$MAX_NUM_SEQS" -gt 2 && "$FORCE_UNSAFE_CTX" != 1 ]]; then
+  echo "MAX_NUM_SEQS=$MAX_NUM_SEQS exceeds 2 on this 12 GiB pin. FORCE_UNSAFE_CTX=1 overrides." >&2
+  exit 1
+fi
+# DSpark n_predict=3
+if [[ $((NUM_SPECULATIVE_TOKENS % 3)) -ne 0 && "$FORCE_UNSAFE_CTX" != 1 ]]; then
+  echo "NUM_SPECULATIVE_TOKENS=$NUM_SPECULATIVE_TOKENS is not divisible by 3. FORCE_UNSAFE_CTX=1 overrides." >&2
+  exit 1
+fi
+if [[ "$KV_CACHE_MEMORY" -gt 12884901888 && "$FORCE_UNSAFE_CTX" != 1 ]]; then
+  echo "KV_CACHE_MEMORY=$KV_CACHE_MEMORY exceeds 12 GiB pin 12884901888. FORCE_UNSAFE_CTX=1 overrides." >&2
+  exit 1
+fi
 
 if [[ "${VALIDATE_ONLY:-0}" == "1" ]]; then
   printf '==> validate-only spec=%s seqs=%s spec_tokens=%s eager=%s compilation=%s image=%s\n' \
@@ -109,11 +122,7 @@ token_env() {
 }
 
 resolve_model() {
-  if [[ -d "$SNAPSHOT" ]]; then
-    printf '%s\n' "$SNAPSHOT_IN_CONTAINER"
-  else
-    printf '%s\n' "$MODEL"
-  fi
+  printf '%s\n' "$SNAPSHOT_IN_CONTAINER"
 }
 
 maybe_drop_caches() {
@@ -132,25 +141,36 @@ ensure_image() {
 }
 
 ensure_weights() {
-  if [[ "$SKIP_DOWNLOAD" == "1" ]]; then
-    return
+  if [[ "$SKIP_DOWNLOAD" != "1" ]]; then
+    local HF=""
+    HF="$(hf_bin || true)"
+    if [[ -d "$SNAPSHOT" ]]; then
+      log "Using pinned snapshot $SNAPSHOT"
+    elif [[ -n "$HF" ]]; then
+      export HF_HUB_DISABLE_XET="${HF_HUB_DISABLE_XET:-1}"
+      log "Downloading $MODEL revision $SNAPSHOT_SHA (resumes under $HF_CACHE)"
+      "$HF" download "$MODEL" --revision "$SNAPSHOT_SHA"
+    else
+      echo "No hf CLI on PATH and snapshot $SNAPSHOT is missing" >&2
+      exit 1
+    fi
   fi
-  local HF=""
-  HF="$(hf_bin || true)"
-  if [[ -d "$SNAPSHOT" ]]; then
-    log "Using pinned snapshot $SNAPSHOT"
-  elif [[ -n "$HF" ]]; then
-    export HF_HUB_DISABLE_XET="${HF_HUB_DISABLE_XET:-1}"
-    log "Downloading $MODEL (resumes under $HF_CACHE)"
-    "$HF" download "$MODEL"
-  else
-    log "No hf CLI on PATH — vLLM will pull weights on first load"
+  if [[ ! -d "$SNAPSHOT" ]]; then
+    echo "Pinned snapshot missing: $SNAPSHOT" >&2
+    exit 1
   fi
 }
 
 refuse_foreign_serve() {
   if docker ps --format '{{.Names}}' | grep -qx "$FORBIDDEN_CONTAINER"; then
     echo "$FORBIDDEN_CONTAINER is running. This recipe needs exclusive GPUs on both Sparks. Do not start. Do not docker rm that container from this script." >&2
+    exit 1
+  fi
+}
+
+refuse_busy_port() {
+  if (echo >/dev/tcp/127.0.0.1/"$PORT") >/dev/null 2>&1; then
+    echo "Port $PORT is already in use" >&2
     exit 1
   fi
 }
@@ -301,11 +321,12 @@ start_local() {
 
 wait_ready() {
   log "Waiting for http://127.0.0.1:${PORT}/v1/models"
-  local i
+  local i body
   for i in $(seq 1 480); do
-    if curl -sf "http://127.0.0.1:${PORT}/v1/models" >/dev/null 2>&1; then
+    body="$(curl -sf "http://127.0.0.1:${PORT}/v1/models" || true)"
+    if [[ -n "$body" && "$body" == *"$SERVED_NAME"* ]]; then
       log "Ready → http://127.0.0.1:${PORT}/v1  (context=$MAX_MODEL_LEN)"
-      curl -s "http://127.0.0.1:${PORT}/v1/models" || true
+      printf '%s\n' "$body"
       echo
       return 0
     fi
@@ -328,15 +349,21 @@ ROLE="$(detect_role)"
 log "role=$ROLE host=$(host_short)"
 
 if [[ "$ORCHESTRATE" == "auto" && "$ROLE" == "head" ]]; then
-  if command -v ssh >/dev/null 2>&1 && ssh -o BatchMode=yes -o ConnectTimeout=5 "$WORKER_HOST" true >/dev/null 2>&1; then
+  refuse_foreign_serve
+  refuse_busy_port
+  if [[ "$NNODES" -gt 1 ]]; then
+    if ! command -v ssh >/dev/null 2>&1 || ! ssh -o BatchMode=yes -o ConnectTimeout=5 "$WORKER_HOST" true >/dev/null 2>&1; then
+      echo "Cannot SSH to $WORKER_HOST. Refusing to start a TP=$TP head rank alone (NNODES=$NNODES)." >&2
+      exit 1
+    fi
     log "Starting worker on $WORKER_HOST first"
+    mkdir -p "${PWD}/.run-state"
+    printf '%s\n' "$WORKER_HOST" >"${PWD}/.run-state/worker_host"
     scp -q "$0" "${WORKER_HOST}:/tmp/dsv4-vision-run.sh"
     ssh "$WORKER_HOST" \
-      "ROLE=worker ORCHESTRATE=0 IMAGE='$IMAGE' CONTAINER_NAME='$CONTAINER_NAME' PORT='$PORT' MASTER_PORT='$MASTER_PORT' HEAD_IP='$HEAD_IP' IFACE='$IFACE' HCA='$HCA' MAX_MODEL_LEN='$MAX_MODEL_LEN' MAX_NUM_SEQS='$MAX_NUM_SEQS' UTIL='$UTIL' KV_CACHE_MEMORY='$KV_CACHE_MEMORY' KV_CACHE_DTYPE='$KV_CACHE_DTYPE' BLOCK_SIZE='$BLOCK_SIZE' TP='$TP' NNODES='$NNODES' SERVED_NAME='$SERVED_NAME' SKIP_DOWNLOAD='$SKIP_DOWNLOAD' SPEC='$SPEC' SPEC_CONFIG='$SPEC_CONFIG' NUM_SPECULATIVE_TOKENS='$NUM_SPECULATIVE_TOKENS' ENFORCE_EAGER='$ENFORCE_EAGER' COMPILATION_CONFIG='$COMPILATION_CONFIG' MAX_NUM_BATCHED_TOKENS='$MAX_NUM_BATCHED_TOKENS' FORCE_UNSAFE_CTX='$FORCE_UNSAFE_CTX' VLLM_USE_BREAKABLE_CUDAGRAPH='$VLLM_USE_BREAKABLE_CUDAGRAPH' LOAD_FORMAT='$LOAD_FORMAT' MOE_BACKEND='$MOE_BACKEND' EXTRA_ARGS='$EXTRA_ARGS' bash /tmp/dsv4-vision-run.sh"
+      "ROLE=worker ORCHESTRATE=0 IMAGE='$IMAGE' CONTAINER_NAME='$CONTAINER_NAME' PORT='$PORT' MASTER_PORT='$MASTER_PORT' HEAD_IP='$HEAD_IP' IFACE='$IFACE' HCA='$HCA' MAX_MODEL_LEN='$MAX_MODEL_LEN' MAX_NUM_SEQS='$MAX_NUM_SEQS' UTIL='$UTIL' KV_CACHE_MEMORY='$KV_CACHE_MEMORY' KV_CACHE_DTYPE='$KV_CACHE_DTYPE' BLOCK_SIZE='$BLOCK_SIZE' TP='$TP' NNODES='$NNODES' SERVED_NAME='$SERVED_NAME' SKIP_DOWNLOAD='$SKIP_DOWNLOAD' SPEC='$SPEC' SPEC_CONFIG='$SPEC_CONFIG' NUM_SPECULATIVE_TOKENS='$NUM_SPECULATIVE_TOKENS' ENFORCE_EAGER='$ENFORCE_EAGER' COMPILATION_CONFIG='$COMPILATION_CONFIG' MAX_NUM_BATCHED_TOKENS='$MAX_NUM_BATCHED_TOKENS' FORCE_UNSAFE_CTX='$FORCE_UNSAFE_CTX' VLLM_USE_BREAKABLE_CUDAGRAPH='$VLLM_USE_BREAKABLE_CUDAGRAPH' LOAD_FORMAT='$LOAD_FORMAT' MOE_BACKEND='$MOE_BACKEND' SNAPSHOT_SHA='$SNAPSHOT_SHA' HF_CACHE='$HF_CACHE' MODEL='$MODEL' VLLM_USE_B12X_MHC='${VLLM_USE_B12X_MHC:-0}' EXTRA_ARGS='$EXTRA_ARGS' bash /tmp/dsv4-vision-run.sh"
     log "Worker container started. Waiting 25s for NCCL listen, then starting head"
     sleep 25
-  else
-    log "Cannot SSH to $WORKER_HOST — starting local rank only. Run ROLE=worker ./run.sh on the other Spark first."
   fi
   start_local 0
   wait_ready
