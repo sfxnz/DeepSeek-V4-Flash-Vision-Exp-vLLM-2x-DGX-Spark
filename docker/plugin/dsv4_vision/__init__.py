@@ -6,11 +6,11 @@ __all__ = ["register"]
 def register() -> None:
     from vllm.model_executor.models.registry import ModelRegistry
 
+    from .hooks import install_arch_convertor, install_encoding_hooks
+
+    install_arch_convertor()
+    install_encoding_hooks()
     ModelRegistry.register_model(
-        "DeepseekV4ForCausalLM",
-        "dsv4_vision.model:DeepseekV4VisionForCausalLM",
-    )
-    ModelRegistry.register_model(
-        "DeepseekV4VisionForCausalLM",
-        "dsv4_vision.model:DeepseekV4VisionForCausalLM",
+        "DeepseekV4ForConditionalGeneration",
+        "dsv4_vision.vl_model:DeepseekV4ForConditionalGeneration",
     )
