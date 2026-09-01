@@ -4,7 +4,7 @@ Serve [deepseek-ai/DeepSeek-V4-Flash-Vision-Exp](https://huggingface.co/deepseek
 
 284B total / 13B active MoE plus a native 32-layer ViT (~0.47B BF16). Experts are MXFP4. Attention is FP8. Native context is 1,048,576. This recipe serves `--max-model-len` 1048576 with fused DSpark (6 speculative tokens) on the B12X GB10 image.
 
-Stock `vllm/vllm-openai` does not run MXFP4 CSA/HCA on sm_121. Build `dsv4-flash-vision-sm121` from `eugr/spark-vllm-b12x:latest` first. The overlay `ENTRYPOINT` is `vllm serve`. The B12X base image has no CMD, so a snapshot path as argv0 execs a directory.
+Stock `vllm/vllm-openai` does not run MXFP4 CSA/HCA on sm_121. Build `dsv4-flash-vision-sm121` from `eugr/spark-vllm-b12x:latest` first. The Dockerfile pins `eugr/spark-vllm-b12x:latest@sha256:7dc02f162929943ba2e14514066ed2a04bb7e9ed3592d4eb460ebcbb1f8376bd`. The overlay `ENTRYPOINT` is `vllm serve`. The B12X base image has no CMD, so a snapshot path as argv0 execs a directory.
 
 Pinned snapshot: `86f746b36186f0e567729a5c06a8c918caba82a9`.
 
@@ -47,11 +47,11 @@ hf auth login
 On both nodes, from this repo:
 
 ```bash
-docker pull eugr/spark-vllm-b12x:latest
+docker pull eugr/spark-vllm-b12x:latest@sha256:7dc02f162929943ba2e14514066ed2a04bb7e9ed3592d4eb460ebcbb1f8376bd
 docker build -f docker/Dockerfile.b12x-vision -t dsv4-flash-vision-sm121 docker
 ```
 
-The Dockerfile starts from `eugr/spark-vllm-b12x:latest` and installs the official ViT/aligner as a vLLM plugin (`VLLM_PLUGINS=dsv4_vision`). The wrapper subclasses `DeepseekV4ForCausalLM` so DSpark still sees `lm_head` and `get_mtp_target_hidden_states`. A compose-style wrapper that hides those attributes collapses draft acceptance. `run.sh` refuses a missing image. Do not use stock vllm/vllm-openai on sm_121.
+The Dockerfile starts from `eugr/spark-vllm-b12x:latest@sha256:7dc02f162929943ba2e14514066ed2a04bb7e9ed3592d4eb460ebcbb1f8376bd` and installs the official ViT/aligner as a vLLM plugin (`VLLM_PLUGINS=dsv4_vision`). The wrapper subclasses `DeepseekV4ForCausalLM` so DSpark still sees `lm_head` and `get_mtp_target_hidden_states`. A compose-style wrapper that hides those attributes collapses draft acceptance. `run.sh` refuses a missing image. Do not use stock vllm/vllm-openai on sm_121.
 
 ## Quick start
 
@@ -62,7 +62,7 @@ chmod +x run.sh stop.sh
 ./run.sh
 ```
 
-The head script copies itself to `spark2`, starts the worker, waits 25s, then starts rank 0. First boot is weight load plus warmup.
+The head script copies itself to `spark2`, starts the worker, waits 25s, then starts rank 0. First boot is weight load plus warmup. `run.sh` forwards `SNAPSHOT_SHA`, `HF_CACHE`, `MODEL`, and `VLLM_USE_B12X_MHC` to the worker. Download uses `--revision "$SNAPSHOT_SHA"`. If `ORCHESTRATE=auto`, `ROLE=head`, `NNODES>1`, and SSH to `WORKER_HOST` fails, the script exits 1. It does not start a TP=2 head rank alone.
 
 If SSH is not set up, start the worker yourself, then the head:
 
@@ -88,7 +88,7 @@ curl -s http://127.0.0.1:8000/v1/chat/completions \
   }'
 ```
 
-Vision smoke. Images use OpenAI `image_url` blocks. The placeholder is `<｜deepseek_image｜>`. Cap is 384 tokens per image.
+Vision smoke is not wired on this SHA. A POST with `image_url` returns HTTP 400 `deepseek-ai/DeepSeek-V4-Flash-Vision-Exp is not a multimodal model`. The plugin loads ViT and Aligner weights, but it never registers `SupportsMultiModal` or `MULTIMODAL_REGISTRY`. vLLM rejects the request before inference. Keep this curl as the check after that registration lands. Images use OpenAI `image_url` blocks. The placeholder is `<｜deepseek_image｜>`. Cap is 384 tokens per image.
 
 Every MoE layer also ships `ffn.gate.bias_vl` (43 backbone + 3 MTP). vLLM's DeepseekV4 mapper only maps `ffn.gate.bias` to `e_score_correction_bias`. Image-token expert routing is not on the B12X text path until a later hillclimb patches the router. Text decode is unaffected.
 
@@ -112,6 +112,8 @@ Stop both ranks from the head:
 ```bash
 ./stop.sh
 ```
+
+`ORCHESTRATE=auto` (default) also stops the worker over SSH. If that probe fails, `stop.sh` prints to stderr and exits 1. `ORCHESTRATE=0` stops only the local container. The worker hostname is `WORKER_HOST`, else `$PWD/.run-state/worker_host`, else `spark2`.
 
 ## Defaults
 

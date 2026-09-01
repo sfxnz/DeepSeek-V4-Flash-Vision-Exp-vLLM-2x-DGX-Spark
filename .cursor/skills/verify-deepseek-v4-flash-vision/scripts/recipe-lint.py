@@ -47,6 +47,7 @@ def main() -> int:
     need(REPO / "encoding" / "encoding_dsv4.py")
     need(REPO / "tests" / "test_image_grid.py")
     need(REPO / "tests" / "test_plugin_register.py")
+    need(REPO / "tests" / "test_recipe_ops.py")
 
     run_sh_path = REPO / "run.sh"
     stop_sh_path = REPO / "stop.sh"
@@ -80,7 +81,10 @@ def main() -> int:
         "Say hello in one sentence.",
         "thinking",
         "eugr/spark-vllm-b12x:latest",
+        "eugr/spark-vllm-b12x:latest@sha256:7dc02f162929943ba2e14514066ed2a04bb7e9ed3592d4eb460ebcbb1f8376bd",
         "bias_vl",
+        "is not a multimodal model",
+        "SNAPSHOT_SHA",
     ):
         if snippet not in readme:
             failures.append(f"README missing {snippet!r}")
@@ -123,8 +127,12 @@ def main() -> int:
     dockerfile = REPO / "docker/Dockerfile.b12x-vision"
     if dockerfile.exists():
         got = from_line(dockerfile)
-        if got != "eugr/spark-vllm-b12x:latest":
-            failures.append(f"Dockerfile.b12x-vision FROM {got!r} want 'eugr/spark-vllm-b12x:latest'")
+        want_from = (
+            "eugr/spark-vllm-b12x:latest@"
+            "sha256:7dc02f162929943ba2e14514066ed2a04bb7e9ed3592d4eb460ebcbb1f8376bd"
+        )
+        if got != want_from:
+            failures.append(f"Dockerfile.b12x-vision FROM {got!r} want {want_from!r}")
         df_text = dockerfile.read_text()
         if 'ENTRYPOINT ["vllm", "serve"]' not in df_text:
             failures.append("Dockerfile.b12x-vision missing ENTRYPOINT [\"vllm\", \"serve\"]")
@@ -155,6 +163,19 @@ def main() -> int:
     )
     if plug.returncode != 0:
         failures.append(f"test_plugin_register.py failed: {plug.stderr.strip() or plug.stdout.strip()}")
+    enc_a = REPO / "encoding" / "encoding_dsv4.py"
+    enc_b = REPO / "docker" / "plugin" / "dsv4_vision" / "encoding_dsv4.py"
+    if enc_a.exists() and enc_b.exists() and enc_a.read_bytes() != enc_b.read_bytes():
+        failures.append("encoding/encoding_dsv4.py differs from docker/plugin/dsv4_vision/encoding_dsv4.py")
+    ops = subprocess.run(
+        [py, str(REPO / "tests" / "test_recipe_ops.py")],
+        check=False,
+        capture_output=True,
+        text=True,
+        cwd=str(REPO),
+    )
+    if ops.returncode != 0:
+        failures.append(f"test_recipe_ops.py failed: {ops.stderr.strip() or ops.stdout.strip()}")
 
     val = subprocess.run(
         ["bash", str(run_sh_path)],
