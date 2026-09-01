@@ -84,10 +84,15 @@ def main() -> int:
         "eugr/spark-vllm-b12x:latest@sha256:7dc02f162929943ba2e14514066ed2a04bb7e9ed3592d4eb460ebcbb1f8376bd",
         "bias_vl",
         "is not a multimodal model",
+        "python3 smoke_vision.py",
+        "MULTIMODAL_REGISTRY",
+        "SupportsMultiModal",
         "SNAPSHOT_SHA",
     ):
         if snippet not in readme:
             failures.append(f"README missing {snippet!r}")
+    if "not wired on this SHA" in readme:
+        failures.append("README still claims vision is unwired")
 
     expected = {
         "IMAGE": "dsv4-flash-vision-sm121",
