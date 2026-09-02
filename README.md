@@ -15,15 +15,15 @@ Decode only. Streamed greedy, thinking off, 200 completion tokens, 3-run median.
 <!-- BEGIN generated measured from recipe.yaml — edit recipe.yaml and run kit/render.py -->
 | Phase | Concurrency | Decode tok/s (median per stream) | Aggregate tok/s | TTFT p50 |
 |---|---|---:|---:|---:|
-| prose | 1 | 27.0 | 27.0 | 0.37 s |
-| prose | 2 | 20.6 | 39.8 | 0.37 s |
-| structured | 1 | 86.9 | 86.9 | 0.34 s |
-| structured | 2 | 66.0 | 130.8 | 0.51 s |
+| prose | 1 | 26.2 | 26.2 | 0.39 s |
+| prose | 2 | 20.5 | 40.5 | 0.40 s |
+| structured | 1 | 88.2 | 88.2 | 0.32 s |
+| structured | 2 | 68.6 | 131.6 | 0.32 s |
 <!-- END generated measured -->
 
 Engine log: GPU KV cache size 1,250,741 tokens, 1.19× concurrency at 1,048,576. vLLM needs 11.04 GiB for one 1M request. An 8 GiB pin estimates max len 289024. Do not use a 26 GiB community pin on this UMA leftover.
 
-DSpark-5 is rejected (`num_speculative_tokens` must be divisible by `n_predict=3`). DSpark-6 boots. Draft acceptance on this bench: prose ~0.15, structured ~0.89.
+DSpark-5 is rejected (`num_speculative_tokens` must be divisible by `n_predict=3`). DSpark-6 boots. Draft acceptance on this bench: prose ~0.14, structured ~0.88.
 
 `VLLM_USE_B12X_MHC` stays off. Vision-Exp `rms_norm_eps` is `1e-20`. The B12X fused Gram mHC kernel only accepts `1e-6`.
 

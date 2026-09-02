@@ -1,0 +1,483 @@
+# Plugin sources inside the running containers vs docker/plugin/dsv4_vision at HEAD a34220f
+# (- = container, + = repo HEAD). Files absent on rank 1: hooks.py mm_preprocess.py vl_model.py
+
+## rank0 encoding_dsv4.py
+--- /tmp/ds-img/rank0/encoding_dsv4.py	2026-09-02 21:32:30.455948204 +0100
++++ docker/plugin/dsv4_vision/encoding_dsv4.py	2026-09-02 21:18:27.992268208 +0100
+@@ -234,6 +234,28 @@
+ # Message Rendering
+ # ============================================================
+ 
++def flatten_content_blocks(content: Any) -> Any:
++    """Flatten OpenAI-style content blocks to plain text.
++
++    Image blocks become IMAGE_PLACEHOLDER. The image bytes travel out of band.
++    """
++    if not isinstance(content, list):
++        return content
++    parts: List[str] = []
++    for block in content:
++        if not isinstance(block, dict):
++            parts.append(str(block))
++        elif block.get("type") in ("image", "image_url"):
++            parts.append(IMAGE_PLACEHOLDER)
++        elif block.get("type") == "text":
++            parts.append(block.get("text", "") or "")
++        else:
++            raise ValueError(
++                f"Unsupported content block type: {block.get('type')!r}"
++            )
++    return "".join(parts)
++
++
+ def render_message(index: int, messages: List[Dict[str, Any]], thinking_mode: str, drop_thinking: bool = True, reasoning_effort: Optional[str] = None) -> str:
+     """
+     Render a single message at the given index into its encoded string form.
+@@ -310,6 +332,8 @@
+                 block_type = block.get("type")
+                 if block_type == "text":
+                     parts.append(block.get("text", ""))
++                elif block_type in ("image", "image_url"):
++                    parts.append(IMAGE_PLACEHOLDER)
+                 elif block_type == "tool_result":
+                     tool_content = block.get("content", "")
+                     if isinstance(tool_content, list):
+@@ -456,7 +480,24 @@
+         elif role == "user":
+             content_blocks = msg.get("content_blocks")
+             if content_blocks is None:
+-                content_blocks = [{"type": "text", "text": msg.get("content", "")}]
++                content = msg.get("content", "")
++                if isinstance(content, list):
++                    msg["content"] = flatten_content_blocks(content)
++                    content_blocks = []
++                    for block in content:
++                        if isinstance(block, dict) and block.get("type") in (
++                            "image",
++                            "image_url",
++                        ):
++                            content_blocks.append(
++                                {"type": "text", "text": IMAGE_PLACEHOLDER}
++                            )
++                        elif isinstance(block, dict) and block.get("type") == "text":
++                            content_blocks.append(block)
++                        else:
++                            content_blocks.append({"type": "text", "text": str(block)})
++                else:
++                    content_blocks = [{"type": "text", "text": content}]
+             if merged and merged[-1].get("role") == "user" and "content_blocks" in merged[-1] and merged[-1].get("task") is None:
+                 merged[-1]["content_blocks"].extend(content_blocks)
+             else:
+
+## rank1 __init__.py
+--- /tmp/ds-img/rank1/__init__.py	2026-09-02 21:32:31.000948767 +0100
++++ docker/plugin/dsv4_vision/__init__.py	2026-09-02 21:18:27.992009520 +0100
+@@ -6,11 +6,11 @@
+ def register() -> None:
+     from vllm.model_executor.models.registry import ModelRegistry
+ 
++    from .hooks import install_arch_convertor, install_encoding_hooks
++
++    install_arch_convertor()
++    install_encoding_hooks()
+     ModelRegistry.register_model(
+-        "DeepseekV4ForCausalLM",
+-        "dsv4_vision.model:DeepseekV4VisionForCausalLM",
+-    )
+-    ModelRegistry.register_model(
+-        "DeepseekV4VisionForCausalLM",
+-        "dsv4_vision.model:DeepseekV4VisionForCausalLM",
++        "DeepseekV4ForConditionalGeneration",
++        "dsv4_vision.vl_model:DeepseekV4ForConditionalGeneration",
+     )
+
+## rank1 model.py
+--- /tmp/ds-img/rank1/model.py	2026-09-02 21:32:31.384949164 +0100
++++ docker/plugin/dsv4_vision/model.py	2026-09-02 21:18:27.992506896 +0100
+@@ -1,126 +1,5 @@
+-"""Vision-Exp wrapper around vLLM DeepseekV4ForCausalLM.
++"""Back-compat import path. The serve class is DeepseekV4ForConditionalGeneration."""
+ 
+-Loads official `vision.*` / `aligner.*` / image sentinel tensors and merges
+-ViT embeddings on prefill. Language decode stays on the B12X DeepSeek V4 path.
+-"""
++from .vl_model import DeepseekV4ForConditionalGeneration
+ 
+-from __future__ import annotations
+-
+-from types import SimpleNamespace
+-from typing import Any
+-
+-import torch
+-import torch.nn as nn
+-
+-from vllm.model_executor.models.utils import AutoWeightsLoader
+-from vllm.models.deepseek_v4 import DeepseekV4ForCausalLM
+-
+-from .vision import Aligner, ViT
+-
+-
+-def _vision_args(hf: Any) -> SimpleNamespace:
+-    return SimpleNamespace(
+-        vision_n_layers=int(getattr(hf, "vision_n_layers", 0) or 0),
+-        vision_dim=int(getattr(hf, "vision_dim", 1024)),
+-        vision_n_heads=int(getattr(hf, "vision_n_heads", 16)),
+-        vision_inter_dim=int(getattr(hf, "vision_inter_dim", 2816)),
+-        vision_patch_size=int(getattr(hf, "vision_patch_size", 14)),
+-        vision_rope_theta=float(getattr(hf, "vision_rope_theta", 10000.0)),
+-        vision_downsample_ratio=int(getattr(hf, "vision_downsample_ratio", 3)),
+-        vision_max_n_token=int(getattr(hf, "vision_max_n_token", 384)),
+-        vision_min_pixels=int(getattr(hf, "vision_min_pixels", 147456)),
+-        vision_max_wh_ratio=int(getattr(hf, "vision_max_wh_ratio", 8)),
+-        dim=int(getattr(hf, "hidden_size", 4096)),
+-        num_hash_layers=int(getattr(hf, "num_hash_layers", 0) or 0),
+-    )
+-
+-
+-class DeepseekV4VisionForCausalLM(DeepseekV4ForCausalLM):
+-    def __init__(self, *, vllm_config, prefix: str = ""):
+-        super().__init__(vllm_config=vllm_config, prefix=prefix)
+-        hf = vllm_config.model_config.hf_config
+-        args = _vision_args(hf)
+-        self._vision_args = args
+-        if args.vision_n_layers <= 0:
+-            self.vision = None
+-            self.aligner = None
+-            return
+-        self.vision = ViT(args)
+-        self.aligner = Aligner(args)
+-        self.image_start = nn.Parameter(torch.empty(args.dim))
+-        self.image_end = nn.Parameter(torch.empty(args.dim))
+-        self.image_newline = nn.Parameter(torch.empty(args.dim))
+-        self.image_pad = nn.Parameter(torch.empty(args.dim))
+-
+-    def encode_image(self, patches: torch.Tensor, n_vit_h: int, n_vit_w: int) -> torch.Tensor:
+-        return self.aligner(self.vision(patches, n_vit_h, n_vit_w), n_vit_h, n_vit_w)
+-
+-    def forward(
+-        self,
+-        input_ids,
+-        positions,
+-        intermediate_tensors=None,
+-        inputs_embeds=None,
+-        **kwargs,
+-    ):
+-        # Spec-decode extra kwargs must not TypeError. lm_head and
+-        # get_mtp_target_hidden_states stay on the parent class.
+-        return super().forward(
+-            input_ids,
+-            positions,
+-            intermediate_tensors,
+-            inputs_embeds,
+-        )
+-
+-    def load_weights(self, weights):
+-        if self.vision is None:
+-            return super().load_weights(weights)
+-        leftover = []
+-        stacked = {
+-            "vision.": self.vision,
+-            "aligner.": self.aligner,
+-        }
+-        params = {
+-            "image_start": self.image_start,
+-            "image_end": self.image_end,
+-            "image_newline": self.image_newline,
+-            "image_pad": self.image_pad,
+-        }
+-        for name, tensor in weights:
+-            if name in params:
+-                params[name].data.copy_(tensor)
+-                continue
+-            routed = False
+-            for prefix, module in stacked.items():
+-                if name.startswith(prefix):
+-                    AutoWeightsLoader(module).load_weights(
+-                        [(name[len(prefix) :], tensor)]
+-                    )
+-                    routed = True
+-                    break
+-            if not routed:
+-                leftover.append((name, tensor))
+-        leftover = [
+-            pair
+-            for pair in leftover
+-            if not _skip_unmapped_gate(pair[0], self._vision_args)
+-        ]
+-        return super().load_weights(leftover)
+-
+-
+-def _skip_unmapped_gate(name: str, args: SimpleNamespace) -> bool:
+-    # Hash MoE layers register tid2eid and leave e_score_correction_bias as
+-    # None. The B12X mapper still rewrites ffn.gate.bias onto that missing
+-    # name. bias_vl has no mapper at all.
+-    if name.endswith("ffn.gate.bias_vl"):
+-        return True
+-    if name.endswith("ffn.gate.bias"):
+-        parts = name.split(".")
+-        if (
+-            len(parts) >= 5
+-            and parts[0] == "layers"
+-            and parts[1].isdigit()
+-            and int(parts[1]) < args.num_hash_layers
+-        ):
+-            return True
+-    return False
++__all__ = ["DeepseekV4ForConditionalGeneration"]
+
+## rank1 vision.py
+--- /tmp/ds-img/rank1/vision.py	2026-09-02 21:32:31.755949547 +0100
++++ docker/plugin/dsv4_vision/vision.py	2026-09-02 21:18:27.992506896 +0100
+@@ -1,3 +1,5 @@
++"""DeepSeek-V4 vision tower (ViT + aligner). Weight names match the HF checkpoint."""
++
+ from functools import lru_cache
+ 
+ import torch
+@@ -6,12 +8,14 @@
+ 
+ 
+ @lru_cache(8)
+-def get_vision_cos_sin(n_h: int, n_w: int, dim: int, theta: float):
++def get_vision_cos_sin(
++    n_h: int, n_w: int, dim: int, theta: float
++) -> tuple[torch.Tensor, torch.Tensor]:
+     inv_freq = 1.0 / (theta ** (torch.arange(0, dim, 2, dtype=torch.float32) / dim))
+     hpos = torch.arange(n_h).unsqueeze(1).expand(n_h, n_w)
+     wpos = torch.arange(n_w).unsqueeze(0).expand(n_h, n_w)
+-    freqs = torch.stack([hpos, wpos], dim=-1).reshape(-1, 2, 1).float() * inv_freq
+-    freqs = freqs.flatten(1)
++    freqs = torch.stack([hpos, wpos], dim=-1).reshape(-1, 2, 1).float()
++    freqs = (freqs * inv_freq).flatten(1)
+     return freqs.cos().unsqueeze(1), freqs.sin().unsqueeze(1)
+ 
+ 
+@@ -21,7 +25,7 @@
+     return torch.cat([x1 * cos - x2 * sin, x2 * cos + x1 * sin], dim=-1).to(dtype)
+ 
+ 
+-class RMSNorm(nn.Module):
++class DeepseekV4RMSNorm(nn.Module):
+     def __init__(self, dim: int, eps: float = 1e-6):
+         super().__init__()
+         self.eps = eps
+@@ -34,85 +38,105 @@
+         return (self.weight * x).to(dtype)
+ 
+ 
+-class PatchEmbed(nn.Module):
+-    def __init__(self, args):
++class DeepseekV4PatchEmbed(nn.Module):
++    def __init__(self, config):
+         super().__init__()
+-        self.proj = nn.Linear(3 * args.vision_patch_size ** 2, args.vision_dim)
++        self.proj = nn.Linear(3 * config.vision_patch_size**2, config.vision_dim)
+ 
+     def forward(self, x: torch.Tensor) -> torch.Tensor:
+         return self.proj(x.flatten(1))
+ 
+ 
+-class Attention(nn.Module):
+-    def __init__(self, args):
++class DeepseekV4VisionAttention(nn.Module):
++    def __init__(self, config):
+         super().__init__()
+-        self.n_heads = args.vision_n_heads
+-        self.head_dim = args.vision_dim // args.vision_n_heads
+-        self.wqkv = nn.Linear(args.vision_dim, 3 * args.vision_dim)
+-        self.wo = nn.Linear(args.vision_dim, args.vision_dim)
+-
+-    def forward(self, x: torch.Tensor, cos: torch.Tensor, sin: torch.Tensor) -> torch.Tensor:
++        self.n_heads = config.vision_n_heads
++        self.head_dim = config.vision_dim // config.vision_n_heads
++        self.wqkv = nn.Linear(config.vision_dim, 3 * config.vision_dim)
++        self.wo = nn.Linear(config.vision_dim, config.vision_dim)
++
++    def forward(
++        self, x: torch.Tensor, cos: torch.Tensor, sin: torch.Tensor
++    ) -> torch.Tensor:
+         n = x.size(0)
+-        q, k, v = (t.view(n, self.n_heads, self.head_dim) for t in self.wqkv(x).chunk(3, dim=-1))
++        q, k, v = (
++            t.view(n, self.n_heads, self.head_dim)
++            for t in self.wqkv(x).chunk(3, dim=-1)
++        )
+         q = apply_rotary(q, cos, sin)
+         k = apply_rotary(k, cos, sin)
+-        o = F.scaled_dot_product_attention(q.transpose(0, 1), k.transpose(0, 1), v.transpose(0, 1))
++        o = F.scaled_dot_product_attention(
++            q.transpose(0, 1), k.transpose(0, 1), v.transpose(0, 1)
++        )
+         return self.wo(o.transpose(0, 1).reshape(n, -1))
+ 
+ 
+-class MLP(nn.Module):
+-    def __init__(self, args):
++class DeepseekV4VisionMLP(nn.Module):
++    def __init__(self, config):
+         super().__init__()
+-        self.w1 = nn.Linear(args.vision_dim, 2 * args.vision_inter_dim, bias=False)
+-        self.w2 = nn.Linear(args.vision_inter_dim, args.vision_dim, bias=False)
++        self.w1 = nn.Linear(config.vision_dim, 2 * config.vision_inter_dim, bias=False)
++        self.w2 = nn.Linear(config.vision_inter_dim, config.vision_dim, bias=False)
+ 
+     def forward(self, x: torch.Tensor) -> torch.Tensor:
+         gate, up = self.w1(x).chunk(2, dim=-1)
+         return self.w2(F.silu(gate) * up)
+ 
+ 
+-class Block(nn.Module):
+-    def __init__(self, args):
++class DeepseekV4VisionBlock(nn.Module):
++    def __init__(self, config):
+         super().__init__()
+-        self.norm1 = RMSNorm(args.vision_dim)
+-        self.attn = Attention(args)
+-        self.norm2 = RMSNorm(args.vision_dim)
+-        self.mlp = MLP(args)
+-
+-    def forward(self, x: torch.Tensor, cos: torch.Tensor, sin: torch.Tensor) -> torch.Tensor:
++        self.norm1 = DeepseekV4RMSNorm(config.vision_dim)
++        self.attn = DeepseekV4VisionAttention(config)
++        self.norm2 = DeepseekV4RMSNorm(config.vision_dim)
++        self.mlp = DeepseekV4VisionMLP(config)
++
++    def forward(
++        self, x: torch.Tensor, cos: torch.Tensor, sin: torch.Tensor
++    ) -> torch.Tensor:
+         x = x + self.attn(self.norm1(x), cos, sin)
+         return x + self.mlp(self.norm2(x))
+ 
+ 
+-class ViT(nn.Module):
+-    """DeepSeek ViT: full bidirectional attention over one image with 2D RoPE."""
+-    def __init__(self, args):
+-        super().__init__()
+-        self.rope_dim = args.vision_dim // args.vision_n_heads // 2
+-        self.rope_theta = args.vision_rope_theta
+-        self.patch_embed = PatchEmbed(args)
+-        self.blocks = nn.ModuleList([Block(args) for _ in range(args.vision_n_layers)])
+-        self.norm = RMSNorm(args.vision_dim)
+-
+-    def forward(self, patches: torch.Tensor, n_h: int, n_w: int) -> torch.Tensor:
++class DeepseekV4ViT(nn.Module):
++    def __init__(self, config):
++        super().__init__()
++        self.rope_dim = config.vision_dim // config.vision_n_heads // 2
++        self.rope_theta = config.vision_rope_theta
++        self.patch_embed = DeepseekV4PatchEmbed(config)
++        self.blocks = nn.ModuleList(
++            [DeepseekV4VisionBlock(config) for _ in range(config.vision_n_layers)]
++        )
++        self.norm = DeepseekV4RMSNorm(config.vision_dim)
++
++    def forward(
++        self, patches: torch.Tensor, n_vit_h: int, n_vit_w: int
++    ) -> torch.Tensor:
+         x = self.patch_embed(patches)
+-        cos, sin = get_vision_cos_sin(n_h, n_w, self.rope_dim, self.rope_theta)
++        cos, sin = get_vision_cos_sin(n_vit_h, n_vit_w, self.rope_dim, self.rope_theta)
++        cos = cos.to(device=x.device)
++        sin = sin.to(device=x.device)
+         for block in self.blocks:
+             x = block(x, cos, sin)
+         return self.norm(x)
+ 
+ 
+-class Aligner(nn.Module):
+-    def __init__(self, args):
++class DeepseekV4Aligner(nn.Module):
++    def __init__(self, config):
+         super().__init__()
+-        self.downsample_ratio = args.vision_downsample_ratio
+-        in_dim = args.vision_dim * self.downsample_ratio ** 2
+-        self.w1 = nn.Linear(in_dim, args.dim)
+-        self.w2 = nn.Linear(args.dim, args.dim)
++        self.downsample_ratio = config.vision_downsample_ratio
++        in_dim = config.vision_dim * self.downsample_ratio**2
++        self.w1 = nn.Linear(in_dim, config.hidden_size)
++        self.w2 = nn.Linear(config.hidden_size, config.hidden_size)
+ 
+-    def forward(self, x: torch.Tensor, n_h: int, n_w: int) -> torch.Tensor:
++    def forward(self, x: torch.Tensor, n_vit_h: int, n_vit_w: int) -> torch.Tensor:
+         r = self.downsample_ratio
+-        x = x.view(n_h, n_w, -1).permute(2, 0, 1)
+-        x = F.pad(x, (0, -n_w % r, 0, -n_h % r))
++        x = x.view(n_vit_h, n_vit_w, -1).permute(2, 0, 1)
++        x = F.pad(x, (0, -n_vit_w % r, 0, -n_vit_h % r))
+         x = F.unfold(x.unsqueeze(0), r, stride=r).squeeze(0).transpose(0, 1)
+         return self.w2(F.gelu(self.w1(x)))
++
++
++# Older plugin names. Same modules, HF weight layout unchanged.
++ViT = DeepseekV4ViT
++Aligner = DeepseekV4Aligner
++RMSNorm = DeepseekV4RMSNorm
+
+## rank1 encoding_dsv4.py
+--- /tmp/ds-img/rank1/encoding_dsv4.py	2026-09-02 21:32:32.101949905 +0100
++++ docker/plugin/dsv4_vision/encoding_dsv4.py	2026-09-02 21:18:27.992268208 +0100
+@@ -234,6 +234,28 @@
+ # Message Rendering
+ # ============================================================
+ 
++def flatten_content_blocks(content: Any) -> Any:
++    """Flatten OpenAI-style content blocks to plain text.
++
++    Image blocks become IMAGE_PLACEHOLDER. The image bytes travel out of band.
++    """
++    if not isinstance(content, list):
++        return content
++    parts: List[str] = []
++    for block in content:
++        if not isinstance(block, dict):
++            parts.append(str(block))
++        elif block.get("type") in ("image", "image_url"):
++            parts.append(IMAGE_PLACEHOLDER)
++        elif block.get("type") == "text":
++            parts.append(block.get("text", "") or "")
++        else:
++            raise ValueError(
++                f"Unsupported content block type: {block.get('type')!r}"
++            )
++    return "".join(parts)
++
++
+ def render_message(index: int, messages: List[Dict[str, Any]], thinking_mode: str, drop_thinking: bool = True, reasoning_effort: Optional[str] = None) -> str:
+     """
+     Render a single message at the given index into its encoded string form.
+@@ -310,6 +332,8 @@
+                 block_type = block.get("type")
+                 if block_type == "text":
+                     parts.append(block.get("text", ""))
++                elif block_type in ("image", "image_url"):
++                    parts.append(IMAGE_PLACEHOLDER)
+                 elif block_type == "tool_result":
+                     tool_content = block.get("content", "")
+                     if isinstance(tool_content, list):
+@@ -456,7 +480,24 @@
+         elif role == "user":
+             content_blocks = msg.get("content_blocks")
+             if content_blocks is None:
+-                content_blocks = [{"type": "text", "text": msg.get("content", "")}]
++                content = msg.get("content", "")
++                if isinstance(content, list):
++                    msg["content"] = flatten_content_blocks(content)
++                    content_blocks = []
++                    for block in content:
++                        if isinstance(block, dict) and block.get("type") in (
++                            "image",
++                            "image_url",
++                        ):
++                            content_blocks.append(
++                                {"type": "text", "text": IMAGE_PLACEHOLDER}
++                            )
++                        elif isinstance(block, dict) and block.get("type") == "text":
++                            content_blocks.append(block)
++                        else:
++                            content_blocks.append({"type": "text", "text": str(block)})
++                else:
++                    content_blocks = [{"type": "text", "text": content}]
+             if merged and merged[-1].get("role") == "user" and "content_blocks" in merged[-1] and merged[-1].get("task") is None:
+                 merged[-1]["content_blocks"].extend(content_blocks)
+             else:

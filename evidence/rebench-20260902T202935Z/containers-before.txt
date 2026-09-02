@@ -1,0 +1,5 @@
+spark1:
+dsv4-flash-vision-exp	dsv4-flash-vision-sm121	Up 32 hours
+conduit	matrixconduit/matrix-conduit:latest	Up 2 days
+spark2:
+dsv4-flash-vision-exp	dsv4-flash-vision-sm121	Up 32 hours
