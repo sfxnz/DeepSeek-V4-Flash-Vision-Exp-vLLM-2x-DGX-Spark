@@ -2,6 +2,7 @@
 # DeepSeek-V4-Flash-Vision-Exp on 2x DGX Spark (GB10) — vLLM TP=2
 set -euo pipefail
 
+# BEGIN generated from recipe.yaml — edit recipe.yaml and run kit/render.py
 MODEL="${MODEL:-deepseek-ai/DeepSeek-V4-Flash-Vision-Exp}"
 SERVED_NAME="${SERVED_NAME:-deepseek-ai/DeepSeek-V4-Flash-Vision-Exp}"
 IMAGE="${IMAGE:-dsv4-flash-vision-sm121}"
@@ -36,6 +37,7 @@ SNAPSHOT_IN_CONTAINER="${HF_HOME_IN_CONTAINER}/hub/models--deepseek-ai--DeepSeek
 SKIP_DOWNLOAD="${SKIP_DOWNLOAD:-0}"
 ORCHESTRATE="${ORCHESTRATE:-auto}"
 EXTRA_ARGS="${EXTRA_ARGS:-}"
+# END generated
 FORBIDDEN_CONTAINER="glm53-flash-nvfp4"
 
 if [[ -z "${SPEC_CONFIG:-}" ]]; then
