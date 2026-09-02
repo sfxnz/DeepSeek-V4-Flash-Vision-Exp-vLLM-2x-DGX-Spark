@@ -1,0 +1,3 @@
+hit=1 prompt_tokens=13349 wall_s=6.560 ttft_s=6.432 prefill_tok_s=2075.5 salt=S1788381227620749116 needle=NEEDLECODE-7F3A91C2
+SUMMARY {"hit": 1, "prompt_tokens": 13349, "wall_s": 6.56, "ttft_s": 6.432, "prefill_tok_s": 2075.5, "salt": "S1788381227620749116"}
+exit=0

@@ -91,10 +91,8 @@ measured:
     conditions: streamed greedy, thinking off, 200 completion tokens, 3-run median; max-num-seqs=2, fp8 KV pinned at 12 GiB, context 1048576, DSpark-6, CUDA graphs
     units: {decode: tok/s per stream (median), aggregate: tok/s, ttft_p50: s}
     rows:
-      - {phase: prose, concurrency: 1, decode: 27.0, aggregate: 27.0, ttft_p50: 0.37, evidence: null}
-      - {phase: prose, concurrency: 2, decode: 20.6, aggregate: 39.8, ttft_p50: 0.37, evidence: null}
-      - {phase: structured, concurrency: 1, decode: 86.9, aggregate: 86.9, ttft_p50: 0.34, evidence: null}
-      - {phase: structured, concurrency: 2, decode: 66.0, aggregate: 130.8, ttft_p50: 0.51, evidence: null}
+      - {phase: prose, concurrency: 1, decode: 26.2, aggregate: 26.2, ttft_p50: 0.39, evidence: evidence/rebench-20260902T202935Z/bench.txt}
+      - {phase: prose, concurrency: 2, decode: 20.5, aggregate: 40.5, ttft_p50: 0.40, evidence: evidence/rebench-20260902T202935Z/bench.txt}
 
 links:
   model: https://huggingface.co/deepseek-ai/DeepSeek-V4-Flash-Vision-Exp
