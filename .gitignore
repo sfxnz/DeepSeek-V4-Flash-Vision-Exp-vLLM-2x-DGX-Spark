@@ -7,6 +7,5 @@ __pycache__/
 *.egg-info/
 dist/
 build/
-.audit/
 .cursor/skills/verify-deepseek-v4-flash-vision/.run-state/
 .cursor/skills/verify-deepseek-v4-flash-vision/artifacts/

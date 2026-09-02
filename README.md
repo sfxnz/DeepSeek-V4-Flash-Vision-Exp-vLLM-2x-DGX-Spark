@@ -29,6 +29,8 @@ Prefill from unique-salt needles, thinking off: 13,349 prompt tokens at 2134 tok
 
 `python3 bench_decode.py` repeats both phases at c=1,2.
 
+Receipts for the boot decisions behind these defaults (pin, DSpark-6, MHC off, seqs=2) are in [`evidence/1m-hillclimb.tsv`](evidence/1m-hillclimb.tsv).
+
 ## Requirements
 
 - Two DGX Sparks on the QSFP RoCE link (stock `10.100.8.1` / `10.100.8.2`)
