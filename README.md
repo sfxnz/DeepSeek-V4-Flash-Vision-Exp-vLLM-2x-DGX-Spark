@@ -17,8 +17,6 @@ Decode only. Streamed greedy, thinking off, 200 completion tokens, 3-run median.
 |---|---|---:|---:|---:|
 | prose | 1 | 26.2 | 26.2 | 0.39 s |
 | prose | 2 | 20.5 | 40.5 | 0.40 s |
-| structured | 1 | 88.2 | 88.2 | 0.32 s |
-| structured | 2 | 68.6 | 131.6 | 0.32 s |
 <!-- END generated measured -->
 
 Engine log: GPU KV cache size 1,250,741 tokens, 1.19× concurrency at 1,048,576. vLLM needs 11.04 GiB for one 1M request. An 8 GiB pin estimates max len 289024. Do not use a 26 GiB community pin on this UMA leftover.

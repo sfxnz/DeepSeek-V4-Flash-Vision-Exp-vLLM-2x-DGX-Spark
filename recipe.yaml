@@ -93,8 +93,6 @@ measured:
     rows:
       - {phase: prose, concurrency: 1, decode: 26.2, aggregate: 26.2, ttft_p50: 0.39, evidence: evidence/rebench-20260902T202935Z/bench.txt}
       - {phase: prose, concurrency: 2, decode: 20.5, aggregate: 40.5, ttft_p50: 0.40, evidence: evidence/rebench-20260902T202935Z/bench.txt}
-      - {phase: structured, concurrency: 1, decode: 88.2, aggregate: 88.2, ttft_p50: 0.32, evidence: evidence/rebench-20260902T202935Z/bench.txt}
-      - {phase: structured, concurrency: 2, decode: 68.6, aggregate: 131.6, ttft_p50: 0.32, evidence: evidence/rebench-20260902T202935Z/bench.txt}
 
 links:
   model: https://huggingface.co/deepseek-ai/DeepSeek-V4-Flash-Vision-Exp
