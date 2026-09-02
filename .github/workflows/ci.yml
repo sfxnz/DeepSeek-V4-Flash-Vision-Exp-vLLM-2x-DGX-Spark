@@ -1,0 +1,56 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  recipe-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: python3 .cursor/skills/verify-deepseek-v4-flash-vision/scripts/recipe-lint.py
+
+  validate-only:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: run.sh dry-run with the shipped defaults
+        run: VALIDATE_ONLY=1 ./run.sh
+      - name: run.sh refuses a window above 1M on the fp8 pin
+        run: |
+          if VALIDATE_ONLY=1 MAX_MODEL_LEN=2097152 ./run.sh; then
+            echo "run.sh accepted MAX_MODEL_LEN=2097152 without FORCE_UNSAFE_CTX" >&2
+            exit 1
+          fi
+      - name: run.sh refuses an 8 GiB KV pin under the 1M window
+        run: |
+          if VALIDATE_ONLY=1 KV_CACHE_MEMORY=8589934592 ./run.sh; then
+            echo "run.sh accepted KV_CACHE_MEMORY=8589934592 at MAX_MODEL_LEN=1048576 without FORCE_UNSAFE_CTX" >&2
+            exit 1
+          fi
+
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: sudo apt-get update && sudo apt-get install -y shellcheck
+      - run: shellcheck -S warning run.sh stop.sh .cursor/skills/verify-deepseek-v4-flash-vision/scripts/*.sh
+
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: python -m pip install pytest
+      - run: python -m pytest tests/ -v
