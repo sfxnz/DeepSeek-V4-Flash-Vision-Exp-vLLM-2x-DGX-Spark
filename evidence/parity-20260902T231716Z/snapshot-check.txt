@@ -1,0 +1,9 @@
+# snapshots before boot Wed Sep  2 11:17:16 PM UTC 2026
+spark1: 86f746b36186f0e567729a5c06a8c918caba82a9
+spark2: 86f746b36186f0e567729a5c06a8c918caba82a9
+157G	/home/sfxnz/.cache/huggingface/hub/models--deepseek-ai--DeepSeek-V4-Flash-Vision-Exp/
+157G	/home/sfxnz/.cache/huggingface/hub/models--deepseek-ai--DeepSeek-V4-Flash-Vision-Exp/
+# snapshots after boot Wed Sep  2 11:26:27 PM UTC 2026
+spark1: 86f746b36186f0e567729a5c06a8c918caba82a9
+spark2: 86f746b36186f0e567729a5c06a8c918caba82a9
+run.log Downloading lines: 0

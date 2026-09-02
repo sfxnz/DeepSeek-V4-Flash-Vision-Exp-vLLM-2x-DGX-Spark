@@ -1,0 +1,49 @@
+{
+    "recipe": "/home/sfxnz/projects/ai-lab/.wt/DeepSeek-kit",
+    "utc": "20260902T232931Z",
+    "failed": 1,
+    "results": [
+        {
+            "probe": "smoke",
+            "status": "PASS",
+            "exit": 0,
+            "seconds": 2
+        },
+        {
+            "probe": "count",
+            "status": "PASS",
+            "exit": 0,
+            "seconds": 7
+        },
+        {
+            "probe": "thinking_off",
+            "status": "PASS",
+            "exit": 0,
+            "seconds": 0
+        },
+        {
+            "probe": "tool_call",
+            "status": "PASS",
+            "exit": 0,
+            "seconds": 9
+        },
+        {
+            "probe": "hermes_two_turn",
+            "status": "PASS",
+            "exit": 0,
+            "seconds": 8
+        },
+        {
+            "probe": "needle",
+            "status": "FAIL",
+            "exit": 1,
+            "seconds": 149
+        },
+        {
+            "probe": "vision",
+            "status": "PASS",
+            "exit": 0,
+            "seconds": 0
+        }
+    ]
+}

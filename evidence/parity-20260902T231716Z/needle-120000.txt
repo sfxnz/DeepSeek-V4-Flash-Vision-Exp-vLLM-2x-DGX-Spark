@@ -1,0 +1,23 @@
+--- request
+{
+  "url": "http://127.0.0.1:8000/v1/chat/completions",
+  "model": "deepseek-ai/DeepSeek-V4-Flash-Vision-Exp",
+  "prompt_tokens": 120000,
+  "concurrency": 1,
+  "needle": "NEEDLECODE-7F3A91C2",
+  "salts": [
+    "S1788391655676374152"
+  ],
+  "max_tokens": 64,
+  "chat_template_kwargs": {
+    "thinking": false,
+    "reasoning_effort": "low"
+  },
+  "prompt_head": "The history of sparse attention is a long story about memory S1788391655676374152. The history of sparse attention is a long story about memory S1788391655676374152. The history of sparse attention is"
+}
+hit=0 prompt_tokens=200013 wall_s=115.375 ttft_s=114.658 prefill_tok_s=1744.4 salt=S1788391655676374152 needle=NEEDLECODE-7F3A91C2
+SUMMARY {"hit": 0, "prompt_tokens": 200013, "wall_s": 115.375, "ttft_s": 114.658, "prefill_tok_s": 1744.4, "salt": "S1788391655676374152"}
+--- response content
+The history of sparse attention is a long story about memory S1788391655676374152. The history of sparse attention is a long story about memory S1788391655676374152. The history of sparse attention is a long story about memory S1788391655676374152. The history of sparse
+http_status=200
+verdict=FAIL reason=needle_miss

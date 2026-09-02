@@ -1,0 +1,92 @@
+--- request
+{
+  "model": "deepseek-ai/DeepSeek-V4-Flash-Vision-Exp",
+  "messages": [
+    {
+      "role": "user",
+      "content": "What is the weather in Wellington right now? Use the get_weather tool."
+    }
+  ],
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "get_weather",
+        "description": "Get the current weather for a city.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "city": {
+              "type": "string",
+              "description": "City name"
+            }
+          },
+          "required": [
+            "city"
+          ]
+        }
+      }
+    }
+  ],
+  "tool_choice": "auto",
+  "max_tokens": 256,
+  "temperature": 0,
+  "chat_template_kwargs": {
+    "thinking": false,
+    "reasoning_effort": "low"
+  }
+}
+--- response
+{
+  "id": "chatcmpl-8b467678153dae6a",
+  "object": "chat.completion",
+  "created": 1788391605,
+  "model": "deepseek-ai/DeepSeek-V4-Flash-Vision-Exp",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "I'll check the current weather in Wellington for you.\n\n",
+        "refusal": null,
+        "annotations": null,
+        "audio": null,
+        "function_call": null,
+        "tool_calls": [
+          {
+            "id": "chatcmpl-tool-9ee8dd23dd68904d",
+            "type": "function",
+            "function": {
+              "name": "get_weather",
+              "arguments": "{\"city\": \"Wellington\"}"
+            }
+          }
+        ],
+        "reasoning": null
+      },
+      "logprobs": null,
+      "finish_reason": "tool_calls",
+      "stop_reason": null,
+      "token_ids": null,
+      "routed_experts": null
+    }
+  ],
+  "service_tier": null,
+  "system_fingerprint": "vllm-0.1.dev20133+gb5f995e73.d20260823-tp2-27e23771",
+  "usage": {
+    "prompt_tokens": 298,
+    "total_tokens": 353,
+    "completion_tokens": 55,
+    "prompt_tokens_details": null
+  },
+  "prompt_logprobs": null,
+  "prompt_token_ids": null,
+  "prompt_text": null,
+  "kv_transfer_params": null,
+  "ec_transfer_params": null,
+  "metrics": null
+}
+http_status=200
+n_tool_calls=1 names=['get_weather'] finish_reason=tool_calls content_chars=55
+SUMMARY {"tool_calls": [{"id": "chatcmpl-tool-9ee8dd23dd68904d", "type": "function", "function": {"name": "get_weather", "arguments": "{\"city\": \"Wellington\"}"}}], "finish_reason": "tool_calls"}
+verdict=PASS

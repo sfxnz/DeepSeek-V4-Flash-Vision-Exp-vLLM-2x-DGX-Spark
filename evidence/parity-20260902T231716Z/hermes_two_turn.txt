@@ -1,0 +1,188 @@
+--- request turn1
+{
+  "model": "deepseek-ai/DeepSeek-V4-Flash-Vision-Exp",
+  "messages": [
+    {
+      "role": "user",
+      "content": "What is the weather in Wellington right now? Use the get_weather tool."
+    }
+  ],
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "get_weather",
+        "description": "Get the current weather for a city.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "city": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "city"
+          ]
+        }
+      }
+    }
+  ],
+  "tool_choice": "auto",
+  "max_tokens": 256,
+  "temperature": 0,
+  "chat_template_kwargs": {
+    "thinking": false,
+    "reasoning_effort": "low"
+  }
+}
+--- response turn1
+{
+  "id": "chatcmpl-953d22593d65ce77",
+  "object": "chat.completion",
+  "created": 1788391614,
+  "model": "deepseek-ai/DeepSeek-V4-Flash-Vision-Exp",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "I'll check the current weather in Wellington for you.\n\n",
+        "refusal": null,
+        "annotations": null,
+        "audio": null,
+        "function_call": null,
+        "tool_calls": [
+          {
+            "id": "chatcmpl-tool-83d2b461d0ae7c44",
+            "type": "function",
+            "function": {
+              "name": "get_weather",
+              "arguments": "{\"city\": \"Wellington\"}"
+            }
+          }
+        ],
+        "reasoning": null
+      },
+      "logprobs": null,
+      "finish_reason": "tool_calls",
+      "stop_reason": null,
+      "token_ids": null,
+      "routed_experts": null
+    }
+  ],
+  "service_tier": null,
+  "system_fingerprint": "vllm-0.1.dev20133+gb5f995e73.d20260823-tp2-27e23771",
+  "usage": {
+    "prompt_tokens": 291,
+    "total_tokens": 346,
+    "completion_tokens": 55,
+    "prompt_tokens_details": null
+  },
+  "prompt_logprobs": null,
+  "prompt_token_ids": null,
+  "prompt_text": null,
+  "kv_transfer_params": null,
+  "ec_transfer_params": null,
+  "metrics": null
+}
+http_status turn1=200
+turn1 http=200 n_tool_calls=1 names=['get_weather']
+--- request turn2
+{
+  "model": "deepseek-ai/DeepSeek-V4-Flash-Vision-Exp",
+  "messages": [
+    {
+      "role": "user",
+      "content": "What is the weather in Wellington right now? Use the get_weather tool."
+    },
+    {
+      "role": "assistant",
+      "content": "I'll check the current weather in Wellington for you.\n\n",
+      "tool_calls": [
+        {
+          "id": "chatcmpl-tool-83d2b461d0ae7c44",
+          "type": "function",
+          "function": {
+            "name": "get_weather",
+            "arguments": "{\"city\": \"Wellington\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "chatcmpl-tool-83d2b461d0ae7c44",
+      "content": "{\"city\": \"Wellington\", \"temp_c\": 12, \"sky\": \"overcast\"}"
+    }
+  ],
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "get_weather",
+        "description": "Get the current weather for a city.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "city": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "city"
+          ]
+        }
+      }
+    }
+  ],
+  "max_tokens": 128,
+  "temperature": 0,
+  "chat_template_kwargs": {
+    "thinking": false,
+    "reasoning_effort": "low"
+  }
+}
+--- response turn2
+{
+  "id": "chatcmpl-8cea29a841ba5ec7",
+  "object": "chat.completion",
+  "created": 1788391615,
+  "model": "deepseek-ai/DeepSeek-V4-Flash-Vision-Exp",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "The current weather in Wellington is **12°C** with **overcast** skies.",
+        "refusal": null,
+        "annotations": null,
+        "audio": null,
+        "function_call": null,
+        "reasoning": null
+      },
+      "logprobs": null,
+      "finish_reason": "stop",
+      "stop_reason": null,
+      "token_ids": null,
+      "routed_experts": null
+    }
+  ],
+  "service_tier": null,
+  "system_fingerprint": "vllm-0.1.dev20133+gb5f995e73.d20260823-tp2-27e23771",
+  "usage": {
+    "prompt_tokens": 377,
+    "total_tokens": 396,
+    "completion_tokens": 19,
+    "prompt_tokens_details": null
+  },
+  "prompt_logprobs": null,
+  "prompt_token_ids": null,
+  "prompt_text": null,
+  "kv_transfer_params": null,
+  "ec_transfer_params": null,
+  "metrics": null
+}
+http_status turn2=200
+turn2 http=200 content_chars=70 leaked_think=0
+SUMMARY {"turn1_names": ["get_weather"], "turn2_content": "The current weather in Wellington is **12\u00b0C** with **overcast** skies.", "http": [200, 200]}
+verdict=PASS

@@ -1,0 +1,60 @@
+--- request
+{
+  "model": "deepseek-ai/DeepSeek-V4-Flash-Vision-Exp",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Reply with exactly the word PING and nothing else."
+    }
+  ],
+  "max_tokens": 64,
+  "temperature": 0,
+  "chat_template_kwargs": {
+    "thinking": false,
+    "reasoning_effort": "low"
+  }
+}
+--- response
+{
+  "id": "chatcmpl-aff87df1b1a5fdb0",
+  "object": "chat.completion",
+  "created": 1788391605,
+  "model": "deepseek-ai/DeepSeek-V4-Flash-Vision-Exp",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "PING",
+        "refusal": null,
+        "annotations": null,
+        "audio": null,
+        "function_call": null,
+        "reasoning": null
+      },
+      "logprobs": null,
+      "finish_reason": "stop",
+      "stop_reason": null,
+      "token_ids": null,
+      "routed_experts": null
+    }
+  ],
+  "service_tier": null,
+  "system_fingerprint": "vllm-0.1.dev20133+gb5f995e73.d20260823-tp2-27e23771",
+  "usage": {
+    "prompt_tokens": 15,
+    "total_tokens": 18,
+    "completion_tokens": 3,
+    "prompt_tokens_details": null
+  },
+  "prompt_logprobs": null,
+  "prompt_token_ids": null,
+  "prompt_text": null,
+  "kv_transfer_params": null,
+  "ec_transfer_params": null,
+  "metrics": null
+}
+http_status=200
+content_chars=4 leaked_think=0 reasoning_chars=0 reasoning_leak=0
+SUMMARY {"content": "PING", "reasoning_content": ""}
+verdict=PASS
