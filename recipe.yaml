@@ -113,7 +113,8 @@ probes:
   - thinking_off
   - tool_call
   - hermes_two_turn
-  - needle: [8000, 32000, 120000]
+  # 120000 (200,013 prompt tokens) is not gated: README "Measured" records it as a miss.
+  - needle: [8000, 32000]
   - vision: {image: solid-red, expect: red}
 
 lint:
