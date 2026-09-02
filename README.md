@@ -12,12 +12,14 @@ Pinned snapshot: `86f746b36186f0e567729a5c06a8c918caba82a9`.
 
 Decode only. Streamed greedy, thinking off, 200 completion tokens, 3-run median. `max-num-seqs=2`, fp8 KV pinned at 12 GiB (`12884901888`), context 1048576, DSpark-6, CUDA graphs. Prose is the low-acceptance regime. Structured (count 1→200) is the high-acceptance regime.
 
+<!-- BEGIN generated measured from recipe.yaml — edit recipe.yaml and run kit/render.py -->
 | Phase | Concurrency | Decode tok/s (median per stream) | Aggregate tok/s | TTFT p50 |
 |---|---|---:|---:|---:|
 | prose | 1 | 27.0 | 27.0 | 0.37 s |
 | prose | 2 | 20.6 | 39.8 | 0.37 s |
 | structured | 1 | 86.9 | 86.9 | 0.34 s |
 | structured | 2 | 66.0 | 130.8 | 0.51 s |
+<!-- END generated measured -->
 
 Engine log: GPU KV cache size 1,250,741 tokens, 1.19× concurrency at 1,048,576. vLLM needs 11.04 GiB for one 1M request. An 8 GiB pin estimates max len 289024. Do not use a 26 GiB community pin on this UMA leftover.
 
@@ -119,6 +121,7 @@ Stop both ranks from the head:
 
 ## Defaults
 
+<!-- BEGIN generated defaults from recipe.yaml — edit recipe.yaml and run kit/render.py -->
 | Setting | Value |
 |---|---|
 | Image | `dsv4-flash-vision-sm121` |
@@ -139,6 +142,7 @@ Stop both ranks from the head:
 | API | `http://<head>:8000/v1` |
 | Container | `dsv4-flash-vision-exp` |
 | Master port | 29522 |
+<!-- END generated defaults -->
 
 `--kv-cache-memory 12884901888` is the measured 12 GiB pin (1.19× at 1M). `run.sh` refuses `--max-model-len` above 1048576 on fp8, and refuses a pin below 12 GiB when the window is above 289024, unless `FORCE_UNSAFE_CTX=1`. Official Spark occupancy is `MAX_NUM_SEQS=8`. Default here stays two sequences. Host headroom after boot is about 8 GiB.
 

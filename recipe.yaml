@@ -1,0 +1,102 @@
+# Source of truth for the values that repeat across run.sh, README.md and CI.
+# Edit here, then `python3 kit/render.py`. CI runs `python3 kit/render.py --check`.
+# Every scalar is used as the string you typed (0.80 stays 0.80). `null` means none.
+# `&name` anchors a value; `*name` reuses it, so a pinned value is written once.
+
+model:
+  id: &model deepseek-ai/DeepSeek-V4-Flash-Vision-Exp
+  revision: &revision 86f746b36186f0e567729a5c06a8c918caba82a9
+  served_name: &served_name deepseek-ai/DeepSeek-V4-Flash-Vision-Exp
+  family: DeepSeek-V4-Flash
+  params: 284B total / 13B active, plus a 32-layer ViT (~0.47B BF16)
+  quant: MXFP4 experts, FP8 attention
+
+image:
+  base: eugr/spark-vllm-b12x:latest
+  digest: sha256:7dc02f162929943ba2e14514066ed2a04bb7e9ed3592d4eb460ebcbb1f8376bd
+  local_tag: &image dsv4-flash-vision-sm121
+  build: docker/Dockerfile.b12x-vision
+
+engine:
+  name: vllm
+  version: null
+
+hardware:
+  shape: 2x DGX Spark (GB10)
+  nnodes: &nnodes 2
+  tp: &tp 2
+
+serve:
+  # The `# BEGIN generated` block of run.sh, in run.sh order. Each key renders as NAME="${NAME:-value}".
+  env:
+    MODEL: *model
+    SERVED_NAME: *served_name
+    IMAGE: *image
+    CONTAINER_NAME: dsv4-flash-vision-exp
+    PORT: 8000
+    MASTER_PORT: 29522
+    HEAD_IP: 10.100.8.1
+    WORKER_HOST: spark2
+    IFACE: enp1s0f1np1
+    HCA: rocep1s0f1
+    TP: *tp
+    NNODES: *nnodes
+    MAX_MODEL_LEN: 1048576
+    MAX_NUM_SEQS: 2
+    UTIL: 0.80
+    KV_CACHE_DTYPE: fp8
+    KV_CACHE_MEMORY: 12884901888
+    BLOCK_SIZE: 256
+    NUM_SPECULATIVE_TOKENS: 6
+    SPEC: dspark
+    LOAD_FORMAT: auto
+    MOE_BACKEND: b12x
+    MAX_NUM_BATCHED_TOKENS: 8192
+    FORCE_UNSAFE_CTX: 0
+    ENFORCE_EAGER: 0
+    VLLM_USE_BREAKABLE_CUDAGRAPH: 0
+    HF_CACHE: $HOME/.cache/huggingface
+    SNAPSHOT_SHA: *revision
+    SKIP_DOWNLOAD: 0
+    ORCHESTRATE: auto
+    EXTRA_ARGS: ""
+
+readme:
+  # Rows of the README "Defaults" table. {NAME} is replaced by serve.env.NAME.
+  defaults:
+    - Image: "`{IMAGE}`"
+    - Model: "`{MODEL}`"
+    - "`--tensor-parallel-size` / `--nnodes`": "{TP} / {NNODES}"
+    - "`--max-model-len`": "{MAX_MODEL_LEN}"
+    - "`--max-num-seqs`": "{MAX_NUM_SEQS}"
+    - "`--max-num-batched-tokens`": "{MAX_NUM_BATCHED_TOKENS}"
+    - "`--kv-cache-dtype`": "`{KV_CACHE_DTYPE}`"
+    - "`--kv-cache-memory`": "`{KV_CACHE_MEMORY}`"
+    - "`--moe-backend`": "`{MOE_BACKEND}`"
+    - "`--block-size`": "{BLOCK_SIZE}"
+    - CUDA graphs: "on, `FULL_AND_PIECEWISE` (`ENFORCE_EAGER=1` reverts to `--enforce-eager`)"
+    - Speculative: "DSpark-{NUM_SPECULATIVE_TOKENS} (`SPEC={SPEC}`)"
+    - Load format: "`{LOAD_FORMAT}` (safetensors). `LOAD_FORMAT=instanttensor` is opt-in"
+    - Tokenizers / tools / reasoning: "`deepseek_v4`"
+    - Default thinking: "`thinking=false`, `reasoning_effort=low`"
+    - API: "`http://<head>:{PORT}/v1`"
+    - Container: "`{CONTAINER_NAME}`"
+    - Master port: "{MASTER_PORT}"
+
+measured:
+  # The README decode table. One row per (phase, concurrency); a row's three numbers come from one
+  # bench_decode.py run. evidence: the file under evidence/ that contains them, or null while there is none.
+  # evidence/1m-hillclimb.tsv records the boot decisions (pin, DSpark-6, MHC off, seqs=2), not these numbers.
+  decode:
+    conditions: streamed greedy, thinking off, 200 completion tokens, 3-run median; max-num-seqs=2, fp8 KV pinned at 12 GiB, context 1048576, DSpark-6, CUDA graphs
+    units: {decode: tok/s per stream (median), aggregate: tok/s, ttft_p50: s}
+    rows:
+      - {phase: prose, concurrency: 1, decode: 27.0, aggregate: 27.0, ttft_p50: 0.37, evidence: null}
+      - {phase: prose, concurrency: 2, decode: 20.6, aggregate: 39.8, ttft_p50: 0.37, evidence: null}
+      - {phase: structured, concurrency: 1, decode: 86.9, aggregate: 86.9, ttft_p50: 0.34, evidence: null}
+      - {phase: structured, concurrency: 2, decode: 66.0, aggregate: 130.8, ttft_p50: 0.51, evidence: null}
+
+links:
+  model: https://huggingface.co/deepseek-ai/DeepSeek-V4-Flash-Vision-Exp
+  base_image: https://hub.docker.com/r/eugr/spark-vllm-b12x
+  repo: https://github.com/sfxnz/DeepSeek-V4-Flash-Vision-Exp-vLLM-2x-DGX-Spark
