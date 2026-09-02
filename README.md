@@ -27,7 +27,7 @@ DSpark-5 is rejected (`num_speculative_tokens` must be divisible by `n_predict=3
 
 Prefill from unique-salt needles, thinking off: 13,349 prompt tokens at 2134 tok/s (hit), 53,349 at 1924 tok/s (hit), 200,013 at 1780 tok/s (miss, model repeated the filler). A 1M needle was not run. Host available RAM after boot is about 8 GiB. Do not raise `MAX_NUM_SEQS` on this pin.
 
-`python3 bench_decode.py` repeats both phases at c=1,2.
+`python3 kit/bench_decode.py --recipe . --phase both --out evidence/<dir>` repeats both phases at c=1,2.
 
 Receipts for the boot decisions behind these defaults (pin, DSpark-6, MHC off, seqs=2) are in [`evidence/1m-hillclimb.tsv`](evidence/1m-hillclimb.tsv).
 
@@ -163,9 +163,13 @@ Pin `NCCL_IB_HCA`. GB10 exposes four HCAs and two of them are DOWN. Unpinned NCC
 ## Repeat the decode bench
 
 ```bash
-python3 bench_decode.py                    # both phases, c=1,2, 3 runs
-python3 bench_decode.py --phase structured # one phase only
+EV=evidence/bench-$(date -u +%Y%m%dT%H%M%SZ)
+python3 kit/bench_decode.py --recipe . --phase both --out "$EV"        # both phases, c=1,2, 3 runs → bench.txt + bench.json
+python3 kit/bench_decode.py --recipe . --phase structured --out "$EV"  # one phase only
+kit/probes/run-all.sh . "$EV"                                          # smoke, count, thinking-off, tools, Hermes, needles, vision
 ```
+
+`kit/` is vendored from the private forge kit (`kit/sync.sh --check .` verifies the copy). `kit/doctor.sh .` reports serve state; `python3 kit/recipe_lint.py .` is the GPU-free CI lint.
 
 ## Logs
 

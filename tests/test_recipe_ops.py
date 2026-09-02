@@ -166,8 +166,8 @@ class RecipeOpsTests(unittest.TestCase):
         self.assertIn(".run-state/", _read(".gitignore"))
 
     def test_smoke_sh_curl_sf_requires_content(self) -> None:
-        smoke = _read(".cursor/skills/verify-deepseek-v4-flash-vision/scripts/smoke.sh")
-        self.assertIn("curl -sf", smoke)
+        smoke = _read("kit/probes/smoke.sh")
+        self.assertIn("http_code", smoke)
         self.assertNotIn("smoke_vision.py", smoke)
         self.assertNotIn("smoke_tools.py", smoke)
         self.assertIn("choices", smoke)
@@ -212,7 +212,7 @@ class RecipeOpsTests(unittest.TestCase):
             bench.wave("http://127.0.0.1:9/v1/chat/completions", "m", "p", 8, 1)
 
     def _load_bench(self):
-        path = ROOT / "bench_decode.py"
+        path = ROOT / "kit" / "bench_decode.py"
         spec = importlib.util.spec_from_file_location("bench_decode_ops", path)
         assert spec is not None and spec.loader is not None
         mod = importlib.util.module_from_spec(spec)
