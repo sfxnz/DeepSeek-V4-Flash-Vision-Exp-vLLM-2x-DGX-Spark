@@ -1,0 +1,1 @@
+status=ready worker=up container=dsv4-flash-vision-exp container_state=running image=dsv4-flash-vision-sm121 api=http://127.0.0.1:8000/v1 model=deepseek-ai/DeepSeek-V4-Flash-Vision-Exp max_model_len=1048576 spec=dspark exit=0

@@ -1,0 +1,5 @@
+phase=prose c=1 decode=26.2->25.4 (-3.1%) aggregate=26.2->25.4 (-3.0%) ttft_p50=0.39->0.37 PASS
+phase=prose c=2 decode=20.5->20.6 (+0.6%) aggregate=40.5->40.8 (+0.9%) ttft_p50=0.40->0.38 PASS
+phase=structured c=1 decode=88.2->86.7 (-1.6%) aggregate=88.2->86.7 (-1.6%) ttft_p50=0.32->0.30 PASS
+phase=structured c=2 decode=68.6->66.0 (-3.8%) aggregate=131.6->127.0 (-3.5%) ttft_p50=0.32->0.50 PASS
+result=pass tol=5%

@@ -1,0 +1,46 @@
+[
+  {
+    "phase": "prose",
+    "concurrency": 1,
+    "decode": 25.37433714775983,
+    "aggregate": 25.369413634774283,
+    "ttft_p50": 0.36981966998428106,
+    "completion_tokens": 86,
+    "n": 3,
+    "acceptance_len": 1.7870967741935484,
+    "draft_acceptance_rate": 0.13118279569892474
+  },
+  {
+    "phase": "prose",
+    "concurrency": 2,
+    "decode": 20.603801932363183,
+    "aggregate": 40.83209181473278,
+    "ttft_p50": 0.384398094000062,
+    "completion_tokens": 92.0,
+    "n": 6,
+    "acceptance_len": 1.902097902097902,
+    "draft_acceptance_rate": 0.15034965034965034
+  },
+  {
+    "phase": "structured",
+    "concurrency": 1,
+    "decode": 86.74235953428986,
+    "aggregate": 86.7146852240838,
+    "ttft_p50": 0.300569260987686,
+    "completion_tokens": 200,
+    "n": 3,
+    "acceptance_len": 6.309278350515464,
+    "draft_acceptance_rate": 0.8848797250859106
+  },
+  {
+    "phase": "structured",
+    "concurrency": 2,
+    "decode": 65.95111688045309,
+    "aggregate": 126.97939604216407,
+    "ttft_p50": 0.5001263195008505,
+    "completion_tokens": 200.0,
+    "n": 6,
+    "acceptance_len": 6.309278350515464,
+    "draft_acceptance_rate": 0.8848797250859106
+  }
+]

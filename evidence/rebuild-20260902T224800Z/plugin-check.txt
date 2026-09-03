@@ -1,0 +1,79 @@
+# plugin check Wed Sep  2 10:49:26 PM UTC 2026
+## repo docker/plugin (HEAD dc6de78, == origin/main docker/)
+ad9092dd56736e92ce7f7e1333a39d1c  ./dsv4_vision/encoding_dsv4.py
+2bda58b289f2e00f32cd9700031fc304  ./dsv4_vision/hooks.py
+2db3bd5b07b5bb1d0d4cd25a48eb6372  ./dsv4_vision/image_processor.py
+e854eb064b58661ecffe80f9a924b5bc  ./dsv4_vision/__init__.py
+8f696085feca3358f56db9624daeca05  ./dsv4_vision/mm_preprocess.py
+e31ff8f9332ce6092b026c260db34071  ./dsv4_vision/model.py
+d2858cbe246ed9a9c181f62de0e921e8  ./dsv4_vision/vision.py
+377e08b29a83dcb67bcdb0fc13e1dfc7  ./dsv4_vision/vl_model.py
+4e5d3b07f37fcddb21c93000a40c3a9e  ./pyproject.toml
+
+## spark1 new image sha256:92edf74fa6ae3c4bd3f95a7b02bc1f65c2862cfd3411243cf682e267a3e0ee76
+e854eb064b58661ecffe80f9a924b5bc  ./build/lib/dsv4_vision/__init__.py
+ad9092dd56736e92ce7f7e1333a39d1c  ./build/lib/dsv4_vision/encoding_dsv4.py
+2bda58b289f2e00f32cd9700031fc304  ./build/lib/dsv4_vision/hooks.py
+2db3bd5b07b5bb1d0d4cd25a48eb6372  ./build/lib/dsv4_vision/image_processor.py
+8f696085feca3358f56db9624daeca05  ./build/lib/dsv4_vision/mm_preprocess.py
+e31ff8f9332ce6092b026c260db34071  ./build/lib/dsv4_vision/model.py
+d2858cbe246ed9a9c181f62de0e921e8  ./build/lib/dsv4_vision/vision.py
+377e08b29a83dcb67bcdb0fc13e1dfc7  ./build/lib/dsv4_vision/vl_model.py
+e854eb064b58661ecffe80f9a924b5bc  ./dsv4_vision/__init__.py
+ad9092dd56736e92ce7f7e1333a39d1c  ./dsv4_vision/encoding_dsv4.py
+2bda58b289f2e00f32cd9700031fc304  ./dsv4_vision/hooks.py
+2db3bd5b07b5bb1d0d4cd25a48eb6372  ./dsv4_vision/image_processor.py
+8f696085feca3358f56db9624daeca05  ./dsv4_vision/mm_preprocess.py
+e31ff8f9332ce6092b026c260db34071  ./dsv4_vision/model.py
+d2858cbe246ed9a9c181f62de0e921e8  ./dsv4_vision/vision.py
+377e08b29a83dcb67bcdb0fc13e1dfc7  ./dsv4_vision/vl_model.py
+4e5d3b07f37fcddb21c93000a40c3a9e  ./pyproject.toml
+---installed---
+e854eb064b58661ecffe80f9a924b5bc  ./__init__.py
+ad9092dd56736e92ce7f7e1333a39d1c  ./encoding_dsv4.py
+2bda58b289f2e00f32cd9700031fc304  ./hooks.py
+2db3bd5b07b5bb1d0d4cd25a48eb6372  ./image_processor.py
+8f696085feca3358f56db9624daeca05  ./mm_preprocess.py
+e31ff8f9332ce6092b026c260db34071  ./model.py
+d2858cbe246ed9a9c181f62de0e921e8  ./vision.py
+377e08b29a83dcb67bcdb0fc13e1dfc7  ./vl_model.py
+---patch---
+vllm 0.1.dev20133+gb5f995e73.d20260823 /usr/local/lib/python3.12/dist-packages/vllm
+
+## spark2 new image sha256:a819a1e4c65816d2649386dfa9fd77342b99a2d83809ff855bd9547206281e1a
+e854eb064b58661ecffe80f9a924b5bc  ./build/lib/dsv4_vision/__init__.py
+ad9092dd56736e92ce7f7e1333a39d1c  ./build/lib/dsv4_vision/encoding_dsv4.py
+2bda58b289f2e00f32cd9700031fc304  ./build/lib/dsv4_vision/hooks.py
+2db3bd5b07b5bb1d0d4cd25a48eb6372  ./build/lib/dsv4_vision/image_processor.py
+8f696085feca3358f56db9624daeca05  ./build/lib/dsv4_vision/mm_preprocess.py
+e31ff8f9332ce6092b026c260db34071  ./build/lib/dsv4_vision/model.py
+d2858cbe246ed9a9c181f62de0e921e8  ./build/lib/dsv4_vision/vision.py
+377e08b29a83dcb67bcdb0fc13e1dfc7  ./build/lib/dsv4_vision/vl_model.py
+e854eb064b58661ecffe80f9a924b5bc  ./dsv4_vision/__init__.py
+ad9092dd56736e92ce7f7e1333a39d1c  ./dsv4_vision/encoding_dsv4.py
+2bda58b289f2e00f32cd9700031fc304  ./dsv4_vision/hooks.py
+2db3bd5b07b5bb1d0d4cd25a48eb6372  ./dsv4_vision/image_processor.py
+8f696085feca3358f56db9624daeca05  ./dsv4_vision/mm_preprocess.py
+e31ff8f9332ce6092b026c260db34071  ./dsv4_vision/model.py
+d2858cbe246ed9a9c181f62de0e921e8  ./dsv4_vision/vision.py
+377e08b29a83dcb67bcdb0fc13e1dfc7  ./dsv4_vision/vl_model.py
+4e5d3b07f37fcddb21c93000a40c3a9e  ./pyproject.toml
+---installed---
+e854eb064b58661ecffe80f9a924b5bc  ./__init__.py
+ad9092dd56736e92ce7f7e1333a39d1c  ./encoding_dsv4.py
+2bda58b289f2e00f32cd9700031fc304  ./hooks.py
+2db3bd5b07b5bb1d0d4cd25a48eb6372  ./image_processor.py
+8f696085feca3358f56db9624daeca05  ./mm_preprocess.py
+e31ff8f9332ce6092b026c260db34071  ./model.py
+d2858cbe246ed9a9c181f62de0e921e8  ./vision.py
+377e08b29a83dcb67bcdb0fc13e1dfc7  ./vl_model.py
+---patch---
+vllm 0.1.dev20133+gb5f995e73.d20260823 /usr/local/lib/python3.12/dist-packages/vllm
+
+## verdict (build/lib/ is pip's wheel scratch copy inside /opt/dsv4_vision_src; excluded)
+spark1 /opt/dsv4_vision_src == repo docker/plugin: MATCH (9 files)
+spark2 /opt/dsv4_vision_src == repo docker/plugin: MATCH (9 files)
+spark1 installed site-packages/dsv4_vision == repo: MATCH (8 files)
+spark2 installed site-packages/dsv4_vision == repo: MATCH (8 files)
+dspark.py patch (grep -c ffn.gate.bias_vl, expect 1): spark1=1 spark2=1
+plugin_check=PASS

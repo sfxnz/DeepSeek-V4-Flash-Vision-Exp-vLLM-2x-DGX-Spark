@@ -98,3 +98,81 @@ links:
   model: https://huggingface.co/deepseek-ai/DeepSeek-V4-Flash-Vision-Exp
   base_image: https://hub.docker.com/r/eugr/spark-vllm-b12x
   repo: https://github.com/sfxnz/DeepSeek-V4-Flash-Vision-Exp-vLLM-2x-DGX-Spark
+
+bench:
+  # kit/bench_decode.py: URL is http://127.0.0.1:{PORT}/v1/chat/completions, model is model.served_name.
+  # chat_template_kwargs turn thinking off for this model; every kit probe sends the same kwargs.
+  chat_template_kwargs: {thinking: false, reasoning_effort: low}
+
+probes:
+  # kit/probes/run-all.sh runs these in order. A bare name has no params; {name: params} passes them.
+  # count, thinking_off and hermes_two_turn are model-agnostic OpenAI-API probes; this recipe had no
+  # scripts for them before the kit and they are new gates here.
+  - smoke
+  - count
+  - thinking_off
+  - tool_call
+  - hermes_two_turn
+  # 120000 (200,013 prompt tokens) is not gated: README "Measured" records it as a miss.
+  - needle: [8000, 32000]
+  - vision: {image: solid-red, expect: red}
+
+lint:
+  # kit/recipe_lint.py: the recipe-specific expectations. Generic checks live in the script.
+  required_files:
+    - docker/Dockerfile.b12x-vision
+    - docker/plugin/pyproject.toml
+    - docker/plugin/dsv4_vision/__init__.py
+    - docker/plugin/dsv4_vision/vision.py
+    - docker/plugin/dsv4_vision/image_processor.py
+    - docker/plugin/dsv4_vision/model.py
+    - docker/patch_dspark_skip_bias_vl.py
+    - encoding/encoding_dsv4.py
+    - tests/test_image_grid.py
+    - tests/test_plugin_register.py
+    - tests/test_recipe_ops.py
+  contains:
+    README.md:
+      - Recipe scripts are MIT
+      - docker build -f docker/Dockerfile.b12x-vision
+      - ./run.sh
+      - ./stop.sh
+      - python3 kit/bench_decode.py
+      - http://127.0.0.1:8000/v1/chat/completions
+      - SPEC=dspark
+      - deepseek-ai/DeepSeek-V4-Flash-Vision-Exp
+      - dsv4-flash-vision-sm121
+      - Say hello in one sentence.
+      - thinking
+      - eugr/spark-vllm-b12x:latest
+      - eugr/spark-vllm-b12x:latest@sha256:7dc02f162929943ba2e14514066ed2a04bb7e9ed3592d4eb460ebcbb1f8376bd
+      - bias_vl
+      - is not a multimodal model
+      - python3 smoke_vision.py
+      - MULTIMODAL_REGISTRY
+      - SupportsMultiModal
+      - SNAPSHOT_SHA
+    run.sh:
+      - Do not use stock vllm/vllm-openai on sm_121
+      - FORCE_UNSAFE_CTX
+      - cannot hold --max-model-len
+      - '"method":"dspark"'
+      - glm53-flash-nvfp4              # occupancy guard against the GLM serve
+    docker/Dockerfile.b12x-vision:
+      - 'ENTRYPOINT ["vllm", "serve"]'
+      - patch_dspark_skip_bias_vl.py
+  forbids:
+    README.md:
+      - not wired on this SHA
+    stop.sh:
+      - glm53-flash-nvfp4
+  readme_mentions_env: [IMAGE, PORT, MAX_MODEL_LEN, MAX_NUM_SEQS, KV_CACHE_MEMORY, BLOCK_SIZE, SPEC, SERVED_NAME, CONTAINER_NAME, NUM_SPECULATIVE_TOKENS, MAX_NUM_BATCHED_TOKENS, KV_CACHE_DTYPE, MASTER_PORT, LOAD_FORMAT, MOE_BACKEND]
+  dockerfile_from:
+    docker/Dockerfile.b12x-vision: eugr/spark-vllm-b12x:latest@sha256:7dc02f162929943ba2e14514066ed2a04bb7e9ed3592d4eb460ebcbb1f8376bd
+  refuse_cases:
+    - {env: {MAX_MODEL_LEN: "2097152"}, expect: cannot hold --max-model-len}
+  commands:
+    - python3 tests/test_image_grid.py
+    - python3 tests/test_plugin_register.py
+    - python3 tests/test_recipe_ops.py
+    - cmp encoding/encoding_dsv4.py docker/plugin/dsv4_vision/encoding_dsv4.py
